@@ -1,0 +1,5 @@
+django>=2.0
+
+# Additional requirements go here
+django-picklefield~=2.0
+croniter~=0.3.30
