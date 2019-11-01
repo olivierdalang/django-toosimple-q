@@ -8,7 +8,7 @@ from .models import Task, Schedule
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ['function', 'args', 'kwargs', 'created_', 'started_', 'finished_', 'icon', 'result']
+    list_display = ['function', 'args', 'kwargs', 'priority', 'created_', 'started_', 'finished_', 'icon', 'result']
     list_display_links = ['function']
     ordering = ['-created']
     readonly_fields = ['args', 'kwargs', 'result']
