@@ -1,5 +1,6 @@
 import time
 import datetime
+import signal
 
 from django.core.management.base import BaseCommand
 from django.utils.translation import ugettext as _
@@ -15,6 +16,11 @@ class Command(BaseCommand):
     help = _('Run tasks an schedules')
 
     def handle(self, *args, **options):
+
+        # Handle SIGTERM and SIGINT (default_int_handler raises KeyboardInterrupt)
+        # see https://stackoverflow.com/a/40785230
+        signal.signal(signal.SIGINT, signal.default_int_handler)
+        signal.signal(signal.SIGTERM, signal.default_int_handler)
 
         logger.info("Autodiscovering tasks.py...")
         autodiscover_modules("tasks")

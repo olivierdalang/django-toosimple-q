@@ -105,11 +105,12 @@ class Task(models.Model):
 
             self.state = Task.SUCCEEDED
         except KeyboardInterrupt:
+            logger.critical(f'{self} got interrupted !')
             self.state = Task.INTERRUPTED
             gracefully_stopped = True
         except Exception:
-            self.result = traceback.format_exc()
             self.state = Task.FAILED
+            self.result = traceback.format_exc()
         finally:
             self.finished = timezone.now()
             self.stdout = stdout.getvalue()
@@ -117,6 +118,7 @@ class Task(models.Model):
             self.save()
             if gracefully_stopped:
                 # We create a replacement task
+                logger.info(f'Creating a replacement task for {self}')
                 Task.objects.create(
                     function=self.function,
                     args=self.args,
