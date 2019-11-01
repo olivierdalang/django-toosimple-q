@@ -15,12 +15,12 @@ def get_version(*file_paths):
     raise RuntimeError('Unable to find version string.')
 
 
-version = get_version("django_toosimple_q", "__init__.py")
-
 setup(
     name='django-toosimple-q',
-    version=version,
+    version=get_version("django_toosimple_q", "__init__.py"),
     description="""A simplistic task queue and cron-like scheduler for Django""",
+    long_description=open('README.md').read(),
+    long_description_content_type="text/markdown",
     author='Olivier Dalang',
     author_email='olivier.dalang@gmail.com',
     url='https://github.com/olivierdalang/django-toosimple-q',
