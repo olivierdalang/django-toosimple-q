@@ -1,6 +1,7 @@
 import datetime
 
 from freezegun import freeze_time
+from pytz import UTC
 
 from django.test import TestCase
 
@@ -260,12 +261,12 @@ class TestDjango_toosimple_q(TestCase):
             def d():
                 pass
 
-            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019, 12, 31))
+            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019, 12, 31, tzinfo=UTC))
             @register_task("lastcheck")
             def e():
                 pass
 
-            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019, 12, 30), catch_up=True)
+            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019, 12, 30, tzinfo=UTC), catch_up=True)
             @register_task("lastcheckcatchup")
             def f():
                 pass
