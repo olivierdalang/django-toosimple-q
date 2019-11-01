@@ -19,6 +19,7 @@ class Task(models.Model):
     FAILED = "FAILED"
     SUCCEEDED = "SUCCEEDED"
     INVALID = "INVALID"
+    INTERRUPTED = "INTERRUPTED"
 
     state_choices = (
         (QUEUED, "QUEUED"),
@@ -26,6 +27,7 @@ class Task(models.Model):
         (FAILED, "FAILED"),
         (SUCCEEDED, "SUCCEEDED"),
         (INVALID, "INVALID"),
+        (INTERRUPTED, "INTERRUPTED"),
     )
 
     function = models.CharField(max_length=1024)
@@ -55,6 +57,8 @@ class Task(models.Model):
             return "✔️"
         elif self.state == Task.FAILED:
             return "❌"
+        elif self.state == Task.INTERRUPTED:
+            return "🛑"
         else:  # if self.state == Task.INVALID:
             return "❔"
 
@@ -83,6 +87,7 @@ class Task(models.Model):
         self.state = Task.PROCESSING
         self.save()
 
+        gracefully_stopped = False
         try:
             stdout = io.StringIO()
             stderr = io.StringIO()
@@ -99,6 +104,9 @@ class Task(models.Model):
                     self.result = callable(*self.args, **self.kwargs)
 
             self.state = Task.SUCCEEDED
+        except KeyboardInterrupt:
+            self.state = Task.INTERRUPTED
+            gracefully_stopped = True
         except Exception:
             self.result = traceback.format_exc()
             self.state = Task.FAILED
@@ -107,6 +115,16 @@ class Task(models.Model):
             self.stdout = stdout.getvalue()
             self.stderr = stderr.getvalue()
             self.save()
+            if gracefully_stopped:
+                # We create a replacement task
+                Task.objects.create(
+                    function=self.function,
+                    args=self.args,
+                    kwargs=self.kwargs,
+                    priority=self.priority,
+                    created=self.created,
+                )
+                exit(0)
 
         return True
 
