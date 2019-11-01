@@ -1,17 +1,13 @@
 import datetime
-import time
-import json
 import contextlib
 import io
 import traceback
-from importlib import import_module
 from croniter import croniter
 
 from picklefield.fields import PickledObjectField
 
 from django.utils import timezone
 from django.db import models
-from django.utils.module_loading import import_string
 
 from .registry import tasks
 from .logging import logger
@@ -103,7 +99,7 @@ class Task(models.Model):
                     self.result = callable(*self.args, **self.kwargs)
 
             self.state = Task.SUCCEEDED
-        except Exception as e:
+        except Exception:
             self.result = traceback.format_exc()
             self.state = Task.FAILED
         finally:
@@ -172,4 +168,3 @@ class Schedule(models.Model):
 
     def __str__(self):
         return f"Schedule {self.function} [{self.cron}]"
-

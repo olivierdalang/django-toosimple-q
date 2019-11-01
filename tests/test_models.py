@@ -3,7 +3,6 @@ import datetime
 from freezegun import freeze_time
 
 from django.test import TestCase
-from django.utils import timezone
 
 from django_toosimple_q.models import Task, Schedule
 from django_toosimple_q.decorators import register_task, schedule
@@ -191,7 +190,6 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(2, function='p1a', state=Task.SUCCEEDED)
         self.assertQueue(2, function='p1b', state=Task.SUCCEEDED)
 
-
     def test_task_queuing_with_unique(self):
         """Checking task queuing with unique"""
 
@@ -236,7 +234,6 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(1, function='unique', state=Task.SUCCEEDED)
         self.assertQueue(2, function='normal', state=Task.SUCCEEDED)
 
-
     def test_schedule(self):
         """Testing schedules"""
 
@@ -250,27 +247,27 @@ class TestDjango_toosimple_q(TestCase):
 
             @schedule(cron="0 12 * * *", last_check=None)
             @register_task("autostart")
-            def a():
+            def b():
                 pass
 
             @schedule(cron="0 12 * * *", catch_up=True)
             @register_task("catchup")
-            def a():
+            def c():
                 pass
 
             @schedule(cron="0 12 * * *", last_check=None, catch_up=True)
             @register_task("autostartcatchup")
-            def a():
+            def d():
                 pass
 
-            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019,12,31))
+            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019, 12, 31))
             @register_task("lastcheck")
-            def a():
+            def e():
                 pass
 
-            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019,12,30), catch_up=True)
+            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019, 12, 30), catch_up=True)
             @register_task("lastcheckcatchup")
-            def a():
+            def f():
                 pass
 
             self.assertEquals(Schedule.objects.count(), 0)

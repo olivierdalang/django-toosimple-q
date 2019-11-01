@@ -1,7 +1,6 @@
 import time
 import datetime
 
-from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.utils.translation import ugettext as _
 from django.utils.module_loading import autodiscover_modules

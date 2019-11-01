@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
                 ('created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('started', models.DateTimeField(blank=True, null=True)),
                 ('finished', models.DateTimeField(blank=True, null=True)),
-                ('state', models.CharField(choices=[('QUEUED', 'QUEUED'), ('PROCESSING', 'PROCESSING'), ('FAILED', 'FAILED'), ('SUCCEEDED', 'SUCCEEDED'), ('INVALID', 'INVALID')], default='QUEUED', max_length=32)),
+                ('state', models.CharField(choices=[('QUEUED', 'QUEUED'), ('PROCESSING', 'PROCESSING'), ('FAILED', 'FAILED'), ('SUCCEEDED', 'SUCCEEDED'), ('INVALID', 'INVALID')], default='QUEUED', max_length=32)),  # NOQA
                 ('result', picklefield.fields.PickledObjectField(blank=True, editable=False, null=True)),
                 ('stdout', models.TextField(blank=True, default='')),
                 ('stderr', models.TextField(blank=True, default='')),
