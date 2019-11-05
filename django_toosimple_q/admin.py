@@ -1,17 +1,30 @@
 from django.contrib import admin
 from django.contrib.humanize.templatetags.humanize import naturaltime
+from django.template.defaultfilters import truncatechars
 from django.urls import reverse
 from django.utils.html import format_html
+from django.contrib.messages.constants import SUCCESS
 
+from .registry import tasks
 from .models import Task, Schedule
 
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ['function', 'args', 'kwargs', 'priority', 'created_', 'started_', 'finished_', 'icon', 'result']
+    list_display = ['function', 'args_', 'kwargs_', 'priority', 'created_', 'started_', 'finished_', 'icon', 'result_']
     list_display_links = ['function']
+    actions = ['action_requeue']
     ordering = ['-created']
     readonly_fields = ['args', 'kwargs', 'result']
+
+    def args_(self, obj):
+        return truncatechars(str(obj.args),32)
+
+    def kwargs_(self, obj):
+        return truncatechars(str(obj.kwargs),32)
+
+    def result_(self, obj):
+        return truncatechars(str(obj.result),32)
 
     def created_(self, obj):
         return naturaltime(obj.created)
@@ -21,6 +34,12 @@ class TaskAdmin(admin.ModelAdmin):
 
     def finished_(self, obj):
         return naturaltime(obj.finished)
+
+    def action_requeue(self, request, queryset):
+        for task in queryset:
+            tasks[task.function].queue(*task.args, **task.kwargs)
+        self.message_user(request, f"{queryset.count()} tasks successfully requeued...", level=SUCCESS)
+    action_requeue.short_description = "Requeue task"
 
 
 @admin.register(Schedule)
