@@ -6,6 +6,7 @@ import logging
 from django.core.management.base import BaseCommand
 from django.utils.translation import ugettext as _
 from django.utils.module_loading import autodiscover_modules
+from django.conf import settings
 
 from ...registry import tasks, schedules
 from ...models import Schedule, Task
@@ -30,6 +31,11 @@ class Command(BaseCommand):
         schedules.add_argument('--recreate_only', action='store_true', help='populates the schedule table then exit (useful for debugging)')
 
     def handle(self, *args, **options):
+
+        if int(options['verbosity']) > 1:
+            logger.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.INFO)
 
         # Handle SIGTERM and SIGINT (default_int_handler raises KeyboardInterrupt)
         # see https://stackoverflow.com/a/40785230

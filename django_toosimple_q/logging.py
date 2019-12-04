@@ -1,3 +1,8 @@
 import logging
 
-logger = logging.getLogger('django_toosimple_q')
+
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+
+logger = logging.getLogger('toosimpleq')
+logger.addHandler(handler)
