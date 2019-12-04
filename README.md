@@ -111,21 +111,21 @@ cleanup.queue()
 cleanup.queue()  # this will be ignored as long as the first one is still queued
 ```
 
-You can assign tasks to specific queues, and then have your worker only consume tasks from specific queues. By default, workers consume all tasks.
+You can assign tasks to specific queues, and then have your worker only consume tasks from specific queues using `--queue myqueue` or `--exclude_queue myqueue`. By default, workers consume all tasks.
 
 ```python
-@register_task()
+@register_task(queue='long_running')
 def long_task():
     ...
 
-@register_task(queue='light')
+@register_task()
 def short_task():
     ...
 
 # Then run those with these workers, so that long
 # running tasks don't prevent short running tasks
 # from being run :
-# manage.py worker --queue light
+# manage.py worker --exclude_queue long_running
 # manage.py worker
 ```
 

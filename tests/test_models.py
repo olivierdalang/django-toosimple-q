@@ -357,12 +357,22 @@ class TestDjango_toosimple_q(TestCase):
         def f(x):
             return x*2
 
+        @register_task("g", queue="queue_g")
+        def g(x):
+            return x*2
+
+        @register_task("h", queue="queue_h")
+        def h(x):
+            return x*2
+
         task_a = a.queue(1)
         task_b = b.queue(1)
         task_c = c.queue(1)
         task_d = d.queue(1)
         task_e = e.queue(1)
         task_f = f.queue(1)
+        task_g = g.queue(1)
+        task_h = h.queue(1)
 
         self.assertTask(task_a, Task.QUEUED)
         self.assertTask(task_b, Task.QUEUED)
@@ -370,6 +380,8 @@ class TestDjango_toosimple_q(TestCase):
         self.assertTask(task_d, Task.QUEUED)
         self.assertTask(task_e, Task.QUEUED)
         self.assertTask(task_f, Task.QUEUED)
+        self.assertTask(task_g, Task.QUEUED)
+        self.assertTask(task_h, Task.QUEUED)
 
         # make sure tasks get assigned to default queue by default
         management.call_command("worker", "--until_done", "--queue", "default")
@@ -380,6 +392,8 @@ class TestDjango_toosimple_q(TestCase):
         self.assertTask(task_d, Task.QUEUED)
         self.assertTask(task_e, Task.QUEUED)
         self.assertTask(task_f, Task.QUEUED)
+        self.assertTask(task_g, Task.QUEUED)
+        self.assertTask(task_h, Task.QUEUED)
 
         # make sure worker only runs their queue
         management.call_command("worker", "--until_done", "--queue", "queue_c")
@@ -390,6 +404,8 @@ class TestDjango_toosimple_q(TestCase):
         self.assertTask(task_d, Task.QUEUED)
         self.assertTask(task_e, Task.QUEUED)
         self.assertTask(task_f, Task.QUEUED)
+        self.assertTask(task_g, Task.QUEUED)
+        self.assertTask(task_h, Task.QUEUED)
 
         # make sure worker can run multiple queues
         management.call_command("worker", "--until_done", "--queue", "queue_b", "--queue", "queue_d")
@@ -400,6 +416,20 @@ class TestDjango_toosimple_q(TestCase):
         self.assertTask(task_d, Task.SUCCEEDED)
         self.assertTask(task_e, Task.QUEUED)
         self.assertTask(task_f, Task.QUEUED)
+        self.assertTask(task_g, Task.QUEUED)
+        self.assertTask(task_h, Task.QUEUED)
+
+        # make sure worker exclude queue works
+        management.call_command("worker", "--until_done", "--exclude_queue", "queue_g", "--exclude_queue", "queue_h")
+
+        self.assertTask(task_a, Task.SUCCEEDED)
+        self.assertTask(task_b, Task.SUCCEEDED)
+        self.assertTask(task_c, Task.SUCCEEDED)
+        self.assertTask(task_d, Task.SUCCEEDED)
+        self.assertTask(task_e, Task.SUCCEEDED)
+        self.assertTask(task_f, Task.SUCCEEDED)
+        self.assertTask(task_g, Task.QUEUED)
+        self.assertTask(task_h, Task.QUEUED)
 
         # make sure worker run all queues by default
         management.call_command("worker", "--until_done")
@@ -410,3 +440,5 @@ class TestDjango_toosimple_q(TestCase):
         self.assertTask(task_d, Task.SUCCEEDED)
         self.assertTask(task_e, Task.SUCCEEDED)
         self.assertTask(task_f, Task.SUCCEEDED)
+        self.assertTask(task_g, Task.SUCCEEDED)
+        self.assertTask(task_h, Task.SUCCEEDED)

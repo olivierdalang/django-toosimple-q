@@ -1,6 +1,7 @@
 import time
 import datetime
 import signal
+import logging
 
 from django.core.management.base import BaseCommand
 from django.utils.translation import ugettext as _
@@ -16,7 +17,9 @@ class Command(BaseCommand):
     help = _('Run tasks an schedules')
 
     def add_arguments(self, parser):
-        parser.add_argument('--queue', action='append', help="which queue to run (can be used several times, all queues are run if not provided)")
+        queue = parser.add_mutually_exclusive_group()
+        queue.add_argument('--queue', action='append', help="which queue to run (can be used several times, all queues are run if not provided)")
+        queue.add_argument('--exclude_queue', action='append', help="which queue not to run (can be used several times, all queues are run if not provided)")
 
         mode = parser.add_mutually_exclusive_group()
         mode.add_argument('--once', action='store_true', help='run once then exit (useful for debugging)')
@@ -47,8 +50,15 @@ class Command(BaseCommand):
             return
 
         self.queues = options['queue']
+        self.excluded_queues = options['exclude_queue']
 
-        logger.info(f"Starting queues {self.queues}...")
+        if self.queues:
+            logger.info(f"Starting queues {self.queues}...")
+        elif self.excluded_queues:
+            logger.info(f"Starting queues except {self.excluded_queues}...")
+        else:
+            logger.info(f"Starting all queues...")
+
         last_run = datetime.datetime.now()
         while True:
             did_something = self.tick()
@@ -90,6 +100,8 @@ class Command(BaseCommand):
         tasks = Task.objects.filter(state=Task.QUEUED)
         if self.queues:
             tasks = tasks.filter(queue__in=self.queues)
+        if self.excluded_queues:
+            tasks = tasks.exclude(queue__in=self.excluded_queues)
         task = tasks.order_by("-priority", "created").first()
         if task:
             did_something |= task.execute()
