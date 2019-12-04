@@ -4,11 +4,11 @@ from freezegun import freeze_time
 from pytz import UTC
 
 from django.test import TestCase
+from django.core import management
 
 from django_toosimple_q.models import Task, Schedule
 from django_toosimple_q.decorators import register_task, schedule
 from django_toosimple_q.registry import schedules, tasks
-from django_toosimple_q.management.commands.worker import Command
 
 
 class TestDjango_toosimple_q(TestCase):
@@ -16,8 +16,6 @@ class TestDjango_toosimple_q(TestCase):
     def setUp(self):
         schedules.clear()
         tasks.clear()
-
-        self.command = Command()
 
     def tearDown(self):
         pass
@@ -29,6 +27,9 @@ class TestDjango_toosimple_q(TestCase):
         if state:
             tasks = tasks.filter(state=state)
         self.assertEquals(tasks.count(), count)
+
+    def assertTask(self, task, state):
+        self.assertEquals(Task.objects.get(pk=task.pk).state, state)
 
     def test_task_states(self):
         """Checking correctness of task states"""
@@ -90,12 +91,12 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(2, state=Task.QUEUED)
         self.assertQueue(0, state=Task.SUCCEEDED)
 
-        self.command.tick()
+        management.call_command("worker", "--once")
 
         self.assertQueue(1, state=Task.QUEUED)
         self.assertQueue(1, state=Task.SUCCEEDED)
 
-        self.command.tick()
+        management.call_command("worker", "--once")
 
         self.assertQueue(0, state=Task.QUEUED)
         self.assertQueue(2, state=Task.SUCCEEDED)
@@ -126,7 +127,7 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(0, function='p1a', state=Task.SUCCEEDED)
         self.assertQueue(0, function='p1b', state=Task.SUCCEEDED)
 
-        self.command.tick()
+        management.call_command("worker", "--once")
 
         self.assertQueue(0, function='p2', state=Task.QUEUED)
         self.assertQueue(1, function='p1a', state=Task.QUEUED)
@@ -135,7 +136,7 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(0, function='p1a', state=Task.SUCCEEDED)
         self.assertQueue(0, function='p1b', state=Task.SUCCEEDED)
 
-        self.command.tick()
+        management.call_command("worker", "--once")
 
         self.assertQueue(0, function='p2', state=Task.QUEUED)
         self.assertQueue(0, function='p1a', state=Task.QUEUED)
@@ -144,7 +145,7 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(1, function='p1a', state=Task.SUCCEEDED)
         self.assertQueue(0, function='p1b', state=Task.SUCCEEDED)
 
-        self.command.tick()
+        management.call_command("worker", "--once")
 
         self.assertQueue(0, function='p2', state=Task.QUEUED)
         self.assertQueue(0, function='p1a', state=Task.QUEUED)
@@ -164,7 +165,7 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(1, function='p1a', state=Task.SUCCEEDED)
         self.assertQueue(1, function='p1b', state=Task.SUCCEEDED)
 
-        self.command.tick()
+        management.call_command("worker", "--once")
 
         self.assertQueue(0, function='p2', state=Task.QUEUED)
         self.assertQueue(1, function='p1a', state=Task.QUEUED)
@@ -173,7 +174,7 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(1, function='p1a', state=Task.SUCCEEDED)
         self.assertQueue(1, function='p1b', state=Task.SUCCEEDED)
 
-        self.command.tick()
+        management.call_command("worker", "--once")
 
         self.assertQueue(0, function='p2', state=Task.QUEUED)
         self.assertQueue(1, function='p1a', state=Task.QUEUED)
@@ -182,7 +183,7 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(1, function='p1a', state=Task.SUCCEEDED)
         self.assertQueue(2, function='p1b', state=Task.SUCCEEDED)
 
-        self.command.tick()
+        management.call_command("worker", "--once")
 
         self.assertQueue(0, function='p2', state=Task.QUEUED)
         self.assertQueue(0, function='p1a', state=Task.QUEUED)
@@ -217,8 +218,7 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(0, function='unique', state=Task.SUCCEEDED)
         self.assertQueue(0, function='normal', state=Task.SUCCEEDED)
 
-        while self.command.tick():
-            pass
+        management.call_command("worker", "--until_done")
 
         self.assertQueue(0, function='unique', state=Task.QUEUED)
         self.assertQueue(0, function='normal', state=Task.QUEUED)
@@ -274,7 +274,7 @@ class TestDjango_toosimple_q(TestCase):
             self.assertEquals(Schedule.objects.count(), 0)
             self.assertQueue(0)
 
-            self.command.create_schedules()
+            management.call_command("worker", "--recreate_only")
 
             self.assertEquals(Schedule.objects.count(), 6)
 
@@ -285,8 +285,7 @@ class TestDjango_toosimple_q(TestCase):
             self.assertQueue(0, function="lastcheck")
             self.assertQueue(0, function="lastcheckcatchup")
 
-            while self.command.tick():
-                pass
+            management.call_command("worker", "--no_recreate", "--until_done")
 
             # first run, only tasks with last_check=None should run as no time passed
             self.assertQueue(0, function="normal")
@@ -296,8 +295,7 @@ class TestDjango_toosimple_q(TestCase):
             self.assertQueue(1, function="lastcheck")
             self.assertQueue(2, function="lastcheckcatchup")
 
-            while self.command.tick():
-                pass
+            management.call_command("worker", "--no_recreate", "--until_done")
 
             # second run, no time passed so no change
             self.assertQueue(0, function="normal")
@@ -308,8 +306,7 @@ class TestDjango_toosimple_q(TestCase):
             self.assertQueue(2, function="lastcheckcatchup")
 
             frozen_datetime.move_to("2020-01-02")
-            while self.command.tick():
-                pass
+            management.call_command("worker", "--no_recreate", "--until_done")
 
             # one day passed, all tasks should have run once
             self.assertQueue(1, function="normal")
@@ -320,8 +317,7 @@ class TestDjango_toosimple_q(TestCase):
             self.assertQueue(3, function="lastcheckcatchup")
 
             frozen_datetime.move_to("2020-01-05")
-            while self.command.tick():
-                pass
+            management.call_command("worker", "--no_recreate", "--until_done")
 
             # three day passed, catch_up should have run thrice and other once
             self.assertQueue(2, function="normal")
