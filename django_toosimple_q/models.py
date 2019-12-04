@@ -33,6 +33,7 @@ class Task(models.Model):
     function = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
+    queue = models.CharField(max_length=32, default='default')
     priority = models.IntegerField(default=0)
 
     created = models.DateTimeField(default=timezone.now)

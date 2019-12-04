@@ -111,6 +111,24 @@ cleanup.queue()
 cleanup.queue()  # this will be ignored as long as the first one is still queued
 ```
 
+You can assign tasks to specific queues, and then have your worker only consume tasks from specific queues. By default, workers consume all tasks.
+
+```python
+@register_task()
+def long_task():
+    ...
+
+@register_task(queue='light')
+def short_task():
+    ...
+
+# Then run those with these workers, so that long
+# running tasks don't prevent short running tasks
+# from being run :
+# manage.py worker --queue light
+# manage.py worker
+```
+
 ### Schedules
 
 By default, `last_run` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `last_run=None`.

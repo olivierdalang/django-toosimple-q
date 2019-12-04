@@ -329,3 +329,84 @@ class TestDjango_toosimple_q(TestCase):
 
             # make sure all tasks succeeded
             self.assertQueue(23, state=Task.SUCCEEDED)
+
+    def test_named_queues(self):
+        """Checking named queues"""
+
+        @register_task("a")  # queue="default"
+        def a(x):
+            return x*2
+
+        @register_task("b", queue="queue_b")
+        def b(x):
+            return x*2
+
+        @register_task("c", queue="queue_c")
+        def c(x):
+            return x*2
+
+        @register_task("d", queue="queue_d")
+        def d(x):
+            return x*2
+
+        @register_task("e", queue="queue_e")
+        def e(x):
+            return x*2
+
+        @register_task("f", queue="queue_f")
+        def f(x):
+            return x*2
+
+        task_a = a.queue(1)
+        task_b = b.queue(1)
+        task_c = c.queue(1)
+        task_d = d.queue(1)
+        task_e = e.queue(1)
+        task_f = f.queue(1)
+
+        self.assertTask(task_a, Task.QUEUED)
+        self.assertTask(task_b, Task.QUEUED)
+        self.assertTask(task_c, Task.QUEUED)
+        self.assertTask(task_d, Task.QUEUED)
+        self.assertTask(task_e, Task.QUEUED)
+        self.assertTask(task_f, Task.QUEUED)
+
+        # make sure tasks get assigned to default queue by default
+        management.call_command("worker", "--until_done", "--queue", "default")
+
+        self.assertTask(task_a, Task.SUCCEEDED)
+        self.assertTask(task_b, Task.QUEUED)
+        self.assertTask(task_c, Task.QUEUED)
+        self.assertTask(task_d, Task.QUEUED)
+        self.assertTask(task_e, Task.QUEUED)
+        self.assertTask(task_f, Task.QUEUED)
+
+        # make sure worker only runs their queue
+        management.call_command("worker", "--until_done", "--queue", "queue_c")
+
+        self.assertTask(task_a, Task.SUCCEEDED)
+        self.assertTask(task_b, Task.QUEUED)
+        self.assertTask(task_c, Task.SUCCEEDED)
+        self.assertTask(task_d, Task.QUEUED)
+        self.assertTask(task_e, Task.QUEUED)
+        self.assertTask(task_f, Task.QUEUED)
+
+        # make sure worker can run multiple queues
+        management.call_command("worker", "--until_done", "--queue", "queue_b", "--queue", "queue_d")
+
+        self.assertTask(task_a, Task.SUCCEEDED)
+        self.assertTask(task_b, Task.SUCCEEDED)
+        self.assertTask(task_c, Task.SUCCEEDED)
+        self.assertTask(task_d, Task.SUCCEEDED)
+        self.assertTask(task_e, Task.QUEUED)
+        self.assertTask(task_f, Task.QUEUED)
+
+        # make sure worker run all queues by default
+        management.call_command("worker", "--until_done")
+
+        self.assertTask(task_a, Task.SUCCEEDED)
+        self.assertTask(task_b, Task.SUCCEEDED)
+        self.assertTask(task_c, Task.SUCCEEDED)
+        self.assertTask(task_d, Task.SUCCEEDED)
+        self.assertTask(task_e, Task.SUCCEEDED)
+        self.assertTask(task_f, Task.SUCCEEDED)

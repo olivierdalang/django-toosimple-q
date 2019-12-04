@@ -3,7 +3,7 @@ from django.core.exceptions import ImproperlyConfigured
 from .registry import tasks, schedules
 
 
-def register_task(name=None, priority=0, unique=False):
+def register_task(name=None, queue='default', priority=0, unique=False):
     """Attaches ._task_name attribute, the .queue() method and adds the callable to the tasks registry"""
 
     def inner(func):
@@ -12,12 +12,13 @@ def register_task(name=None, priority=0, unique=False):
         else:
             func._task_name = func.__globals__["__name__"] + "." + func.__qualname__
 
-        def queue(*args_, **kwargs_):
+        def enqueue(*args_, **kwargs_):
             from .models import Task
             if unique and Task.objects.filter(
                 function=func._task_name,
                 args=args_,
                 kwargs=kwargs_,
+                queue=queue,
                 state=Task.QUEUED
             ).exists():
                 return False
@@ -25,9 +26,10 @@ def register_task(name=None, priority=0, unique=False):
                 function=func._task_name,
                 args=args_,
                 kwargs=kwargs_,
+                queue=queue,
                 priority=priority
             )
-        func.queue = queue
+        func.queue = enqueue
         tasks[func._task_name] = func
         return func
 

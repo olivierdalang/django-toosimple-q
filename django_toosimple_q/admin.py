@@ -11,7 +11,7 @@ from .models import Task, Schedule
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ['function', 'args_', 'kwargs_', 'priority', 'created_', 'started_', 'finished_', 'icon', 'result_']
+    list_display = ['function', 'args_', 'kwargs_', 'queue', 'priority', 'created_', 'started_', 'finished_', 'icon', 'result_']
     list_display_links = ['function']
     actions = ['action_requeue']
     ordering = ['-created']

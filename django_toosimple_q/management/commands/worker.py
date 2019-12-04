@@ -16,13 +16,15 @@ class Command(BaseCommand):
     help = _('Run tasks an schedules')
 
     def add_arguments(self, parser):
+        parser.add_argument('--queue', action='append', help="which queue to run (can be used several times, all queues are run if not provided)")
+
         mode = parser.add_mutually_exclusive_group()
-        mode.add_argument('--once', action='store_true', help='run once then exit')
-        mode.add_argument('--until_done', action='store_true', help='run until no tasks are available then exit')
+        mode.add_argument('--once', action='store_true', help='run once then exit (useful for debugging)')
+        mode.add_argument('--until_done', action='store_true', help='run until no tasks are available then exit (useful for debugging)')
 
         schedules = parser.add_mutually_exclusive_group()
-        schedules.add_argument('--no_recreate', action='store_true', help='do not (re)populate the schedule table')
-        schedules.add_argument('--recreate_only', action='store_true', help='populates the schedule table then exit')
+        schedules.add_argument('--no_recreate', action='store_true', help='do not (re)populate the schedule table (useful for debugging)')
+        schedules.add_argument('--recreate_only', action='store_true', help='populates the schedule table then exit (useful for debugging)')
 
     def handle(self, *args, **options):
 
@@ -44,7 +46,9 @@ class Command(BaseCommand):
             logger.info("Exiting because --recreate_only was passed")
             return
 
-        logger.info(f"Starting queue...")
+        self.queues = options['queue']
+
+        logger.info(f"Starting queues {self.queues}...")
         last_run = datetime.datetime.now()
         while True:
             did_something = self.tick()
@@ -83,7 +87,10 @@ class Command(BaseCommand):
             did_something |= schedule.execute()
 
         logger.info(f"Checking tasks...")
-        task = Task.objects.filter(state=Task.QUEUED).order_by("-priority", "created").first()
+        tasks = Task.objects.filter(state=Task.QUEUED)
+        if self.queues:
+            tasks = tasks.filter(queue__in=self.queues)
+        task = tasks.order_by("-priority", "created").first()
         if task:
             did_something |= task.execute()
 
