@@ -23,7 +23,13 @@ jobs:
     - name: Assert tag matches version
       env:
         GITHUB_TAG: ${{github.ref}}
-      run: python -c "import os, django_toosimple_q; assert 'v'+os.getenv('GITHUB_TAG') == django_toosimple_q.__version__"
+      run: |
+        python -c "
+        import os, django_toosimple_q;
+        print('tag : ' + os.getenv('GITHUB_TAG'));
+        print('module : ' + django_toosimple_q.__version__);
+        assert os.getenv('GITHUB_TAG') == 'refs/tags/v'+django_toosimple_q.__version__, 'Version mismatch'
+        "
     - name: Publish
       env:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
