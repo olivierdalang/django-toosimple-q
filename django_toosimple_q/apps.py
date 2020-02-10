@@ -1,7 +1,17 @@
-# -*- coding: utf-8
 from django.apps import AppConfig
+from django.utils.module_loading import autodiscover_modules
+
+from .registry import tasks, schedules
 
 
 class DjangoToosimpleQConfig(AppConfig):
     name = "django_toosimple_q"
     label = 'toosimpleq'
+
+    def ready(self):
+        # Autodicover tasks.py modules
+
+        print("[toosimpleq] Autodiscovering tasks.py...")
+        autodiscover_modules("tasks")
+        print("[toosimpleq] Loaded {} schedules : {}".format(len(schedules), ", ".join(schedules.keys())))
+        print("[toosimpleq] Loaded {} tasks : {}".format(len(tasks), ", ".join(tasks.keys())))

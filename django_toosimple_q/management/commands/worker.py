@@ -5,8 +5,6 @@ import logging
 
 from django.core.management.base import BaseCommand
 from django.utils.translation import ugettext as _
-from django.utils.module_loading import autodiscover_modules
-from django.conf import settings
 
 from ...registry import tasks, schedules
 from ...models import Schedule, Task
@@ -42,11 +40,8 @@ class Command(BaseCommand):
         signal.signal(signal.SIGINT, signal.default_int_handler)
         signal.signal(signal.SIGTERM, signal.default_int_handler)
 
-        logger.info("Autodiscovering tasks.py...")
-        autodiscover_modules("tasks")
-
-        logger.info("Loaded {} schedules : {}".format(len(schedules), list(schedules.keys())))
-        logger.info("Loaded {} tasks : {}".format(len(tasks), list(tasks.keys())))
+        logger.info("Loaded {} schedules : {}".format(len(schedules), ", ".join(schedules.keys())))
+        logger.info("Loaded {} tasks : {}".format(len(tasks), ", ".join(tasks.keys())))
 
         if not options['no_recreate']:
             self.create_schedules()
