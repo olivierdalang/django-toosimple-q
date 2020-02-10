@@ -13,6 +13,7 @@ from .models import Task, Schedule
 class TaskAdmin(admin.ModelAdmin):
     list_display = ['function', 'args_', 'kwargs_', 'queue', 'priority', 'created_', 'started_', 'finished_', 'icon', 'result_']
     list_display_links = ['function']
+    list_filter = ['function', 'queue']
     actions = ['action_requeue']
     ordering = ['-created']
     readonly_fields = ['args', 'kwargs', 'result']
