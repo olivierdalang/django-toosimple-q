@@ -82,7 +82,7 @@ class Task(models.Model):
             self.save()
             return False
 
-        logger.info(f"Executing {self}")
+        logger.info(f"[{timezone.now()}] executing : {self}")
 
         self.started = timezone.now()
         self.state = Task.PROCESSING
@@ -169,7 +169,7 @@ class Schedule(models.Model):
         next_due = croniter(self.cron, last_check or timezone.now()).get_next(datetime.datetime)
         while last_check is None or next_due <= timezone.now():
 
-            logger.info(f"{self} is due")
+            logger.info(f"[{timezone.now()}] due : {self}")
 
             t = tasks[self.function].queue(*self.args, **self.kwargs)
             if t:

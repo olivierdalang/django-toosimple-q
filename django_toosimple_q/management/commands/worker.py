@@ -94,15 +94,13 @@ class Command(BaseCommand):
     def tick(self):
         """Returns True if something happened (so you can loop for testing)"""
 
-        logger.info(f"tick...")
-
         did_something = False
 
-        logger.info(f"Checking schedules...")
+        logger.debug(f"Checking schedules...")
         for schedule in Schedule.objects.all():
             did_something |= schedule.execute()
 
-        logger.info(f"Checking tasks...")
+        logger.debug(f"Checking tasks...")
         tasks = Task.objects.filter(state=Task.QUEUED)
         if self.queues:
             tasks = tasks.filter(queue__in=self.queues)
