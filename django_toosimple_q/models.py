@@ -134,7 +134,7 @@ class Task(models.Model):
 
 class Schedule(models.Model):
 
-    name = models.CharField(max_length=1024)
+    name = models.CharField(max_length=1024, unique=True)
     function = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
