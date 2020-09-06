@@ -131,10 +131,10 @@ def short_task():
 
 ### Schedules
 
-By default, `last_run` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `last_run=None`.
+By default, `last_check` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `last_check=None`.
 
 ```python
-@schedule(cron="30 8 * * *", last_run=None)
+@schedule(cron="30 8 * * *", last_check=None)
 @register_task()
 def my_task(name):
     return f"Good morning {name} !"
