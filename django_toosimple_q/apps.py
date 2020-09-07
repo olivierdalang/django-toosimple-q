@@ -13,5 +13,5 @@ class DjangoToosimpleQConfig(AppConfig):
 
         print("[toosimpleq] Autodiscovering tasks.py...")
         autodiscover_modules("tasks")
-        print("[toosimpleq] Loaded {} schedules : {}".format(len(schedules), ", ".join(schedules.keys())))
-        print("[toosimpleq] Loaded {} tasks : {}".format(len(tasks), ", ".join(tasks.keys())))
+        print("[toosimpleq] found {} schedules : {}".format(len(schedules), ", ".join(schedules.keys())))
+        print("[toosimpleq] found {} tasks : {}".format(len(tasks), ", ".join(tasks.keys())))
