@@ -28,6 +28,8 @@ class Command(BaseCommand):
         schedules.add_argument('--no_recreate', action='store_true', help='do not (re)populate the schedule table (useful for debugging)')
         schedules.add_argument('--recreate_only', action='store_true', help='populates the schedule table then exit (useful for debugging)')
 
+        parser.add_argument('--tick', default=10.0, type=float, help="frequency in seconds at which the database is checked for new tasks/schedules")
+
     def handle(self, *args, **options):
 
         if int(options['verbosity']) > 1:
@@ -75,7 +77,7 @@ class Command(BaseCommand):
             if not options['until_done']:
                 # wait for next tick
                 dt = (datetime.datetime.now() - last_run).total_seconds()
-                time.sleep(max(0, 10 - dt))
+                time.sleep(max(0, options['tick'] - dt))
 
             last_run = datetime.datetime.now()
 
