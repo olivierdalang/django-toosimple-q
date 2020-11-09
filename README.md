@@ -159,6 +159,33 @@ def my_task(time):
     return f"Good {time} John !"
 ```
 
+### Management comment
+
+Besides standard django management commands arguments, the management command supports following arguments.
+
+```
+usage: manage.py worker [--queue QUEUE | --exclude_queue EXCLUDE_QUEUE]
+                        [--tick TICK]
+                        [--once | --until_done]
+                        [--no_recreate | --recreate_only]
+
+optional arguments:
+  --queue QUEUE         which queue to run (can be used several times, all
+                        queues are run if not provided)
+  --exclude_queue EXCLUDE_QUEUE
+                        which queue not to run (can be used several times, all
+                        queues are run if not provided)
+  --tick TICK           frequency in seconds at which the database is checked
+                        for new tasks/schedules
+  --once                run once then exit (useful for debugging)
+  --until_done          run until no tasks are available then exit (useful for
+                        debugging)
+  --no_recreate         do not (re)populate the schedule table (useful for
+                        debugging)
+  --recreate_only       populates the schedule table then exit (useful for
+                        debugging)
+```
+
 ## Dev
 
 ### Tests
