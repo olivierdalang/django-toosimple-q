@@ -193,3 +193,9 @@ optional arguments:
 ```shell
 $ python manage.py test
 ```
+
+## Changelog
+
+- 2020-11-09 : v0.1.0
+  - added --tick argument
+  - enforce uniqueness of schedule
