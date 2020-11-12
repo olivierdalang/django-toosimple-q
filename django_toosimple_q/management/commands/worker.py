@@ -83,8 +83,8 @@ class Command(BaseCommand):
 
     def create_schedules(self):
         ids = []
-        for schedule_name, kwargs in schedules.items():
-            schedule, created = Schedule.objects.get_or_create(**kwargs)
+        for schedule_name, defaults in schedules.items():
+            schedule, created = Schedule.objects.update_or_create(name=schedule_name, defaults=defaults)
             ids.append(schedule.id)
         Schedule.objects.exclude(id__in=ids).delete()
 

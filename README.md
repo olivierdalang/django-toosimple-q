@@ -196,6 +196,7 @@ $ python manage.py test
 
 ## Changelog
 
-- 2020-11-09 : v0.1.0
+- 2020-11-12 : v0.1.0
+  - fixed bug where updating schedule failed
   - added --tick argument
   - enforce uniqueness of schedule
