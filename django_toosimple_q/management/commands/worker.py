@@ -74,7 +74,7 @@ class Command(BaseCommand):
                 logger.info("Exiting loop because --until_done was passed")
                 break
 
-            if not options['until_done']:
+            if not did_something:
                 # wait for next tick
                 dt = (datetime.datetime.now() - last_run).total_seconds()
                 time.sleep(max(0, options['tick'] - dt))

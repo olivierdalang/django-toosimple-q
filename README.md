@@ -198,5 +198,6 @@ $ python manage.py test
 
 - 2020-11-12 : v0.1.0
   - fixed bug where updating schedule failed
+  - fixed worker not doing all available tasks for each tick
   - added --tick argument
   - enforce uniqueness of schedule
