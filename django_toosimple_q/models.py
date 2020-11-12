@@ -74,13 +74,13 @@ class Task(models.Model):
         self.refresh_from_db()
         if self.state != Task.QUEUED:
             # this task was executed from another worker in the mean time
-            return False
+            return True
 
         if self.function not in tasks.keys():
             # this task is not in the registry
             self.state = Task.INVALID
             self.save()
-            return False
+            return True
 
         logger.info(f"[{timezone.now()}] executing : {self}")
 
@@ -154,18 +154,18 @@ class Schedule(models.Model):
 
         Returns True if at least one task was queued (so you can loop for testing).
         """
-        did_something = False
 
         last_check = self.last_check
         self.refresh_from_db()
         if last_check != self.last_check:
             # this schedule was executed from another worker in the mean time
-            return False
+            return True
 
         # we update last_check already to reduce race condition chance
         self.last_check = timezone.now()
         self.save()
 
+        did_something = False
         next_due = croniter(self.cron, last_check or timezone.now()).get_next(datetime.datetime)
         while last_check is None or next_due <= timezone.now():
 
