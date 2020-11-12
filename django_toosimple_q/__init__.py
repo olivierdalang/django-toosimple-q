@@ -1,2 +1,2 @@
-__version__ = '0.1.0b0'
+__version__ = 'dev'
 default_app_config = "django_toosimple_q.apps.DjangoToosimpleQConfig"

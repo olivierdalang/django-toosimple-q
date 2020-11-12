@@ -18,6 +18,19 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install setuptools wheel twine
+    - name: Set version
+      env:
+        GITHUB_TAG: ${{github.ref}}
+      run: |
+        python -c "
+        import os
+        assert os.getenv('GITHUB_TAG').startswith('refs/tags/v')
+        version = os.getenv('GITHUB_TAG').replace('refs/tags/v', '')
+        with open('django_toosimple_q/__init__.py', 'r') as f:
+            contents = f.read()
+        with open('django_toosimple_q/__init__.py', 'w') as f:
+            f.write(contents.replace('__version__ = \'dev\'', f'__version__ = \'{version}\''))
+        "
     - name: Build
       run: python setup.py sdist bdist_wheel
     - name: Assert tag matches version
