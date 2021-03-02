@@ -139,7 +139,6 @@ class Task(models.Model):
                     state=Task.SLEEPING,
                     due=timezone.now() + datetime.timedelta(seconds=self.retry_delay)
                 )
-                exit(0)
 
         return True
 
