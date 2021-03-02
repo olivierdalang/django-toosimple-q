@@ -199,7 +199,16 @@ optional arguments:
 ### Tests
 
 ```shell
+$ pip install -r requirements-dev.txt
 $ python manage.py test
+```
+
+### Contribute
+
+Code style is done with pre-commit :
+```
+$ pip install -r requirements-dev.txt
+$ pre-commit install
 ```
 
 ## Changelog
