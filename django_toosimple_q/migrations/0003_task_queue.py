@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('toosimpleq', '0002_auto_20191101_1838'),
+        ("toosimpleq", "0002_auto_20191101_1838"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='task',
-            name='queue',
-            field=models.CharField(default='default', max_length=32),
+            model_name="task",
+            name="queue",
+            field=models.CharField(default="default", max_length=32),
         ),
     ]

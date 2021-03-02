@@ -1,10 +1,12 @@
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import timezone
 
-from .registry import tasks, schedules
+from .registry import schedules, tasks
 
 
-def register_task(name=None, queue='default', priority=0, unique=False, retries=0, retry_delay=0):
+def register_task(
+    name=None, queue="default", priority=0, unique=False, retries=0, retry_delay=0
+):
     """Attaches ._task_name attribute, the .queue() method and adds the callable to the tasks registry"""
 
     def inner(func):
@@ -42,6 +44,7 @@ def register_task(name=None, queue='default', priority=0, unique=False, retries=
                 retries=retries,
                 retry_delay=retry_delay,
             )
+
         func.queue = enqueue
         tasks[func._task_name] = func
         return func
@@ -53,14 +56,14 @@ def schedule(**kwargs):
     """Adds the task to the schedules registry"""
 
     def inner(func):
-        if not hasattr(func, '_task_name'):
+        if not hasattr(func, "_task_name"):
             raise ImproperlyConfigured(
                 "Only registered tasks can be scheduled."
                 " Are you sure you registered your callable with the @register_task() decorator ?"
             )
-        schedule_name = kwargs.get('name', func._task_name)
-        kwargs['name'] = schedule_name
-        kwargs['function'] = func._task_name
+        schedule_name = kwargs.get("name", func._task_name)
+        kwargs["name"] = schedule_name
+        kwargs["function"] = func._task_name
         schedules[schedule_name] = kwargs
         return func
 

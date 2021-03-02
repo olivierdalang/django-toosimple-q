@@ -1,19 +1,17 @@
 import datetime
 
+from django.core import management
+from django.test import TestCase
+from django.utils import timezone
 from freezegun import freeze_time
 from pytz import UTC
 
-from django.utils import timezone
-from django.test import TestCase
-from django.core import management
-
-from django_toosimple_q.models import Task, Schedule
 from django_toosimple_q.decorators import register_task, schedule
+from django_toosimple_q.models import Schedule, Task
 from django_toosimple_q.registry import schedules, tasks
 
 
 class TestDjango_toosimple_q(TestCase):
-
     def setUp(self):
         schedules.clear()
         tasks.clear()
@@ -38,7 +36,8 @@ class TestDjango_toosimple_q(TestCase):
         # Succeeding task
         @register_task("a")
         def a(x):
-            return x*2
+            return x * 2
+
         t = Task.objects.create(function="a", args=[2])
         self.assertEqual(t.state, Task.QUEUED)
         t.execute()
@@ -48,7 +47,8 @@ class TestDjango_toosimple_q(TestCase):
         # Failing task
         @register_task("b")
         def b(x):
-            return x/0
+            return x / 0
+
         t = Task.objects.create(function="b", args=[2])
         self.assertEqual(t.state, Task.QUEUED)
         t.execute()
@@ -67,6 +67,7 @@ class TestDjango_toosimple_q(TestCase):
         @register_task("a")
         def a(x):
             pass
+
         t = Task.objects.create(function="a", args=["test"])
         self.assertEqual(t.state, Task.QUEUED)
         t.execute()
@@ -77,7 +78,7 @@ class TestDjango_toosimple_q(TestCase):
 
         @register_task("a")
         def a(x):
-            return x*2
+            return x * 2
 
         self.assertQueue(0, state=Task.QUEUED)
         self.assertQueue(0, state=Task.SUCCEEDED)
@@ -124,232 +125,242 @@ class TestDjango_toosimple_q(TestCase):
 
         @register_task("p2", priority=2)
         def p2(x):
-            return x*2
+            return x * 2
 
         @register_task("p1a", priority=1)
         def p1a(x):
-            return x*2
+            return x * 2
 
         @register_task("p1b", priority=1)
         def p1b(x):
-            return x*2
+            return x * 2
 
         p1a.queue(1)
         p1b.queue(1)
         p2.queue(1)
 
-        self.assertQueue(1, function='p2', state=Task.QUEUED)
-        self.assertQueue(1, function='p1a', state=Task.QUEUED)
-        self.assertQueue(1, function='p1b', state=Task.QUEUED)
-        self.assertQueue(0, function='p2', state=Task.SUCCEEDED)
-        self.assertQueue(0, function='p1a', state=Task.SUCCEEDED)
-        self.assertQueue(0, function='p1b', state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p2", state=Task.QUEUED)
+        self.assertQueue(1, function="p1a", state=Task.QUEUED)
+        self.assertQueue(1, function="p1b", state=Task.QUEUED)
+        self.assertQueue(0, function="p2", state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p1a", state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p1b", state=Task.SUCCEEDED)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function='p2', state=Task.QUEUED)
-        self.assertQueue(1, function='p1a', state=Task.QUEUED)
-        self.assertQueue(1, function='p1b', state=Task.QUEUED)
-        self.assertQueue(1, function='p2', state=Task.SUCCEEDED)
-        self.assertQueue(0, function='p1a', state=Task.SUCCEEDED)
-        self.assertQueue(0, function='p1b', state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p2", state=Task.QUEUED)
+        self.assertQueue(1, function="p1a", state=Task.QUEUED)
+        self.assertQueue(1, function="p1b", state=Task.QUEUED)
+        self.assertQueue(1, function="p2", state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p1a", state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p1b", state=Task.SUCCEEDED)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function='p2', state=Task.QUEUED)
-        self.assertQueue(0, function='p1a', state=Task.QUEUED)
-        self.assertQueue(1, function='p1b', state=Task.QUEUED)
-        self.assertQueue(1, function='p2', state=Task.SUCCEEDED)
-        self.assertQueue(1, function='p1a', state=Task.SUCCEEDED)
-        self.assertQueue(0, function='p1b', state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p2", state=Task.QUEUED)
+        self.assertQueue(0, function="p1a", state=Task.QUEUED)
+        self.assertQueue(1, function="p1b", state=Task.QUEUED)
+        self.assertQueue(1, function="p2", state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p1a", state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p1b", state=Task.SUCCEEDED)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function='p2', state=Task.QUEUED)
-        self.assertQueue(0, function='p1a', state=Task.QUEUED)
-        self.assertQueue(0, function='p1b', state=Task.QUEUED)
-        self.assertQueue(1, function='p2', state=Task.SUCCEEDED)
-        self.assertQueue(1, function='p1a', state=Task.SUCCEEDED)
-        self.assertQueue(1, function='p1b', state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p2", state=Task.QUEUED)
+        self.assertQueue(0, function="p1a", state=Task.QUEUED)
+        self.assertQueue(0, function="p1b", state=Task.QUEUED)
+        self.assertQueue(1, function="p2", state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p1a", state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p1b", state=Task.SUCCEEDED)
 
         p2.queue(1)
         p1b.queue(1)
         p1a.queue(1)
 
-        self.assertQueue(1, function='p2', state=Task.QUEUED)
-        self.assertQueue(1, function='p1a', state=Task.QUEUED)
-        self.assertQueue(1, function='p1b', state=Task.QUEUED)
-        self.assertQueue(1, function='p2', state=Task.SUCCEEDED)
-        self.assertQueue(1, function='p1a', state=Task.SUCCEEDED)
-        self.assertQueue(1, function='p1b', state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p2", state=Task.QUEUED)
+        self.assertQueue(1, function="p1a", state=Task.QUEUED)
+        self.assertQueue(1, function="p1b", state=Task.QUEUED)
+        self.assertQueue(1, function="p2", state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p1a", state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p1b", state=Task.SUCCEEDED)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function='p2', state=Task.QUEUED)
-        self.assertQueue(1, function='p1a', state=Task.QUEUED)
-        self.assertQueue(1, function='p1b', state=Task.QUEUED)
-        self.assertQueue(2, function='p2', state=Task.SUCCEEDED)
-        self.assertQueue(1, function='p1a', state=Task.SUCCEEDED)
-        self.assertQueue(1, function='p1b', state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p2", state=Task.QUEUED)
+        self.assertQueue(1, function="p1a", state=Task.QUEUED)
+        self.assertQueue(1, function="p1b", state=Task.QUEUED)
+        self.assertQueue(2, function="p2", state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p1a", state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p1b", state=Task.SUCCEEDED)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function='p2', state=Task.QUEUED)
-        self.assertQueue(1, function='p1a', state=Task.QUEUED)
-        self.assertQueue(0, function='p1b', state=Task.QUEUED)
-        self.assertQueue(2, function='p2', state=Task.SUCCEEDED)
-        self.assertQueue(1, function='p1a', state=Task.SUCCEEDED)
-        self.assertQueue(2, function='p1b', state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p2", state=Task.QUEUED)
+        self.assertQueue(1, function="p1a", state=Task.QUEUED)
+        self.assertQueue(0, function="p1b", state=Task.QUEUED)
+        self.assertQueue(2, function="p2", state=Task.SUCCEEDED)
+        self.assertQueue(1, function="p1a", state=Task.SUCCEEDED)
+        self.assertQueue(2, function="p1b", state=Task.SUCCEEDED)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function='p2', state=Task.QUEUED)
-        self.assertQueue(0, function='p1a', state=Task.QUEUED)
-        self.assertQueue(0, function='p1b', state=Task.QUEUED)
-        self.assertQueue(2, function='p2', state=Task.SUCCEEDED)
-        self.assertQueue(2, function='p1a', state=Task.SUCCEEDED)
-        self.assertQueue(2, function='p1b', state=Task.SUCCEEDED)
+        self.assertQueue(0, function="p2", state=Task.QUEUED)
+        self.assertQueue(0, function="p1a", state=Task.QUEUED)
+        self.assertQueue(0, function="p1b", state=Task.QUEUED)
+        self.assertQueue(2, function="p2", state=Task.SUCCEEDED)
+        self.assertQueue(2, function="p1a", state=Task.SUCCEEDED)
+        self.assertQueue(2, function="p1b", state=Task.SUCCEEDED)
 
     def test_task_queuing_with_unique(self):
         """Checking task queuing with unique"""
 
         @register_task("normal")
         def normal(x):
-            return x*2
+            return x * 2
 
         @register_task("unique", unique=True)
         def unique(x):
-            return x*2
+            return x * 2
 
-        self.assertQueue(0, function='unique', state=Task.QUEUED)
-        self.assertQueue(0, function='normal', state=Task.QUEUED)
-        self.assertQueue(0, function='unique', state=Task.SUCCEEDED)
-        self.assertQueue(0, function='normal', state=Task.SUCCEEDED)
+        self.assertQueue(0, function="unique", state=Task.QUEUED)
+        self.assertQueue(0, function="normal", state=Task.QUEUED)
+        self.assertQueue(0, function="unique", state=Task.SUCCEEDED)
+        self.assertQueue(0, function="normal", state=Task.SUCCEEDED)
 
         normal.queue(1)
         normal.queue(1)
         unique.queue(1)
         unique.queue(1)
 
-        self.assertQueue(1, function='unique', state=Task.QUEUED)
-        self.assertQueue(2, function='normal', state=Task.QUEUED)
-        self.assertQueue(0, function='unique', state=Task.SUCCEEDED)
-        self.assertQueue(0, function='normal', state=Task.SUCCEEDED)
+        self.assertQueue(1, function="unique", state=Task.QUEUED)
+        self.assertQueue(2, function="normal", state=Task.QUEUED)
+        self.assertQueue(0, function="unique", state=Task.SUCCEEDED)
+        self.assertQueue(0, function="normal", state=Task.SUCCEEDED)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function='unique', state=Task.QUEUED)
-        self.assertQueue(0, function='normal', state=Task.QUEUED)
-        self.assertQueue(1, function='unique', state=Task.SUCCEEDED)
-        self.assertQueue(2, function='normal', state=Task.SUCCEEDED)
+        self.assertQueue(0, function="unique", state=Task.QUEUED)
+        self.assertQueue(0, function="normal", state=Task.QUEUED)
+        self.assertQueue(1, function="unique", state=Task.SUCCEEDED)
+        self.assertQueue(2, function="normal", state=Task.SUCCEEDED)
 
         normal.queue(1)
         normal.queue(1)
         unique.queue(1)
         unique.queue(1)
 
-        self.assertQueue(1, function='unique', state=Task.QUEUED)
-        self.assertQueue(2, function='normal', state=Task.QUEUED)
-        self.assertQueue(1, function='unique', state=Task.SUCCEEDED)
-        self.assertQueue(2, function='normal', state=Task.SUCCEEDED)
+        self.assertQueue(1, function="unique", state=Task.QUEUED)
+        self.assertQueue(2, function="normal", state=Task.QUEUED)
+        self.assertQueue(1, function="unique", state=Task.SUCCEEDED)
+        self.assertQueue(2, function="normal", state=Task.SUCCEEDED)
 
     def test_task_retries(self):
         """Checking task retries"""
 
         @register_task("div_zero", retries=10)
         def div_zero(x):
-            return x/0
+            return x / 0
 
-        self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-        self.assertQueue(0, function='div_zero', state=Task.SLEEPING)
-        self.assertQueue(0, function='div_zero', state=Task.FAILED)
+        self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(0, function="div_zero", state=Task.FAILED)
 
         div_zero.queue(1)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-        self.assertQueue(0, function='div_zero', state=Task.SLEEPING)
-        self.assertQueue(11, function='div_zero', state=Task.FAILED)
+        self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(11, function="div_zero", state=Task.FAILED)
 
     def test_task_retries_delay(self):
         """Checking task retries with delay"""
 
         @register_task("div_zero", retries=10, retry_delay=10)
         def div_zero(x):
-            return x/0
+            return x / 0
 
         # # TODO : use decorator instead once https://github.com/spulec/freezegun/issues/262 is fixed
         initial_datetime = datetime.datetime(year=2020, month=1, day=1)
         with freeze_time(initial_datetime) as frozen_datetime:
 
-            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-            self.assertQueue(0, function='div_zero', state=Task.SLEEPING)
-            self.assertQueue(0, function='div_zero', state=Task.FAILED)
+            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
+            self.assertQueue(0, function="div_zero", state=Task.FAILED)
 
             div_zero.queue(1)
 
             management.call_command("worker", "--until_done")
 
-            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
-            self.assertQueue(1, function='div_zero', state=Task.FAILED)
+            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+            self.assertQueue(1, function="div_zero", state=Task.FAILED)
             self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 10)
+            self.assertEqual(
+                Task.objects.filter(state=Task.FAILED).last().retry_delay, 10
+            )
 
             # if we don't wait, no further task will be processed
             management.call_command("worker", "--until_done")
 
-            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
-            self.assertQueue(1, function='div_zero', state=Task.FAILED)
+            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+            self.assertQueue(1, function="div_zero", state=Task.FAILED)
             self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 10)
+            self.assertEqual(
+                Task.objects.filter(state=Task.FAILED).last().retry_delay, 10
+            )
 
             # if we wait a bit more than 10 seconds, one retry will be done
             frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=11))
 
             management.call_command("worker", "--until_done")
 
-            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
-            self.assertQueue(2, function='div_zero', state=Task.FAILED)
+            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+            self.assertQueue(2, function="div_zero", state=Task.FAILED)
             self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 9)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 20)
+            self.assertEqual(
+                Task.objects.filter(state=Task.FAILED).last().retry_delay, 20
+            )
 
     def test_task_retries_delay_unique(self):
         """Checking unique task retries with delay"""
 
         @register_task("div_zero", retries=10, retry_delay=10, unique=True)
         def div_zero(x):
-            return x/0
+            return x / 0
 
         # # TODO : use decorator instead once https://github.com/spulec/freezegun/issues/262 is fixed
         initial_datetime = datetime.datetime(year=2020, month=1, day=1)
         with freeze_time(initial_datetime) as frozen_datetime:
 
-            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-            self.assertQueue(0, function='div_zero', state=Task.SLEEPING)
-            self.assertQueue(0, function='div_zero', state=Task.FAILED)
+            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
+            self.assertQueue(0, function="div_zero", state=Task.FAILED)
 
             div_zero.queue(1)
 
             management.call_command("worker", "--until_done")
 
-            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
-            self.assertQueue(1, function='div_zero', state=Task.FAILED)
+            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+            self.assertQueue(1, function="div_zero", state=Task.FAILED)
             self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 10)
+            self.assertEqual(
+                Task.objects.filter(state=Task.FAILED).last().retry_delay, 10
+            )
 
             # if we don't wait, no further task will be processed
             management.call_command("worker", "--until_done")
 
-            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
-            self.assertQueue(1, function='div_zero', state=Task.FAILED)
+            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+            self.assertQueue(1, function="div_zero", state=Task.FAILED)
             self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 10)
+            self.assertEqual(
+                Task.objects.filter(state=Task.FAILED).last().retry_delay, 10
+            )
 
             # if we requeue the task, it will be run
             div_zero.queue(1)
@@ -357,11 +368,13 @@ class TestDjango_toosimple_q(TestCase):
 
             management.call_command("worker", "--until_done")
 
-            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
-            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
-            self.assertQueue(2, function='div_zero', state=Task.FAILED)
+            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+            self.assertQueue(2, function="div_zero", state=Task.FAILED)
             self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 9)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 20)
+            self.assertEqual(
+                Task.objects.filter(state=Task.FAILED).last().retry_delay, 20
+            )
 
     def test_schedule(self):
         """Testing schedules"""
@@ -389,12 +402,19 @@ class TestDjango_toosimple_q(TestCase):
             def d():
                 pass
 
-            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019, 12, 31, tzinfo=UTC))
+            @schedule(
+                cron="0 12 * * *",
+                last_check=datetime.datetime(2019, 12, 31, tzinfo=UTC),
+            )
             @register_task("lastcheck")
             def e():
                 pass
 
-            @schedule(cron="0 12 * * *", last_check=datetime.datetime(2019, 12, 30, tzinfo=UTC), catch_up=True)
+            @schedule(
+                cron="0 12 * * *",
+                last_check=datetime.datetime(2019, 12, 30, tzinfo=UTC),
+                catch_up=True,
+            )
             @register_task("lastcheckcatchup")
             def f():
                 pass
@@ -463,35 +483,35 @@ class TestDjango_toosimple_q(TestCase):
 
         @register_task("a")  # queue="default"
         def a(x):
-            return x*2
+            return x * 2
 
         @register_task("b", queue="queue_b")
         def b(x):
-            return x*2
+            return x * 2
 
         @register_task("c", queue="queue_c")
         def c(x):
-            return x*2
+            return x * 2
 
         @register_task("d", queue="queue_d")
         def d(x):
-            return x*2
+            return x * 2
 
         @register_task("e", queue="queue_e")
         def e(x):
-            return x*2
+            return x * 2
 
         @register_task("f", queue="queue_f")
         def f(x):
-            return x*2
+            return x * 2
 
         @register_task("g", queue="queue_g")
         def g(x):
-            return x*2
+            return x * 2
 
         @register_task("h", queue="queue_h")
         def h(x):
-            return x*2
+            return x * 2
 
         task_a = a.queue(1)
         task_b = b.queue(1)
@@ -536,7 +556,9 @@ class TestDjango_toosimple_q(TestCase):
         self.assertTask(task_h, Task.QUEUED)
 
         # make sure worker can run multiple queues
-        management.call_command("worker", "--until_done", "--queue", "queue_b", "--queue", "queue_d")
+        management.call_command(
+            "worker", "--until_done", "--queue", "queue_b", "--queue", "queue_d"
+        )
 
         self.assertTask(task_a, Task.SUCCEEDED)
         self.assertTask(task_b, Task.SUCCEEDED)
@@ -548,7 +570,14 @@ class TestDjango_toosimple_q(TestCase):
         self.assertTask(task_h, Task.QUEUED)
 
         # make sure worker exclude queue works
-        management.call_command("worker", "--until_done", "--exclude_queue", "queue_g", "--exclude_queue", "queue_h")
+        management.call_command(
+            "worker",
+            "--until_done",
+            "--exclude_queue",
+            "queue_g",
+            "--exclude_queue",
+            "queue_h",
+        )
 
         self.assertTask(task_a, Task.SUCCEEDED)
         self.assertTask(task_b, Task.SUCCEEDED)

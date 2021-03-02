@@ -1,16 +1,15 @@
-import datetime
 import contextlib
+import datetime
 import io
 import traceback
-from croniter import croniter
 
+from croniter import croniter
+from django.db import models
+from django.utils import timezone
 from picklefield.fields import PickledObjectField
 
-from django.utils import timezone
-from django.db import models
-
-from .registry import tasks
 from .logging import logger
+from .registry import tasks
 
 
 class Task(models.Model):
@@ -35,10 +34,15 @@ class Task(models.Model):
     function = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
-    queue = models.CharField(max_length=32, default='default')
+    queue = models.CharField(max_length=32, default="default")
     priority = models.IntegerField(default=0)
-    retries = models.IntegerField(default=0, help_text="retries left, -1 means infinite")
-    retry_delay = models.IntegerField(default=0, help_text="Delay before next retry in seconds. Will double after each failure.")
+    retries = models.IntegerField(
+        default=0, help_text="retries left, -1 means infinite"
+    )
+    retry_delay = models.IntegerField(
+        default=0,
+        help_text="Delay before next retry in seconds. Will double after each failure.",
+    )
 
     due = models.DateTimeField(default=timezone.now)
     created = models.DateTimeField(default=timezone.now)
@@ -79,7 +83,9 @@ class Task(models.Model):
         """
 
         self.refresh_from_db()
-        if self.state != Task.QUEUED and not (self.state == Task.SLEEPING and timezone.now() >= self.due):
+        if self.state != Task.QUEUED and not (
+            self.state == Task.SLEEPING and timezone.now() >= self.due
+        ):
             # this task was executed from another worker in the mean time
             return True
 
@@ -113,7 +119,7 @@ class Task(models.Model):
 
             self.state = Task.SUCCEEDED
         except KeyboardInterrupt:
-            logger.critical(f'{self} got interrupted !')
+            logger.critical(f"{self} got interrupted !")
             self.state = Task.INTERRUPTED
             gracefully_stopped = True
         except Exception:
@@ -127,7 +133,7 @@ class Task(models.Model):
 
             if gracefully_stopped or self.retries != 0:
                 # We create a replacement task
-                logger.info(f'Creating a replacement task for {self}')
+                logger.info(f"Creating a replacement task for {self}")
                 Task.objects.create(
                     function=self.function,
                     args=self.args,
@@ -137,7 +143,7 @@ class Task(models.Model):
                     retries=self.retries - 1 if self.retries > 0 else -1,
                     retry_delay=self.retry_delay * 2,
                     state=Task.SLEEPING,
-                    due=timezone.now() + datetime.timedelta(seconds=self.retry_delay)
+                    due=timezone.now() + datetime.timedelta(seconds=self.retry_delay),
                 )
 
         return True
@@ -177,7 +183,9 @@ class Schedule(models.Model):
         self.save()
 
         did_something = False
-        next_due = croniter(self.cron, last_check or timezone.now()).get_next(datetime.datetime)
+        next_due = croniter(self.cron, last_check or timezone.now()).get_next(
+            datetime.datetime
+        )
         while last_check is None or next_due <= timezone.now():
 
             logger.info(f"[{timezone.now()}] due : {self}")
