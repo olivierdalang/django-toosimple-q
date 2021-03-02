@@ -3,6 +3,7 @@ import datetime
 from freezegun import freeze_time
 from pytz import UTC
 
+from django.utils import timezone
 from django.test import TestCase
 from django.core import management
 
@@ -91,13 +92,30 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(2, state=Task.QUEUED)
         self.assertQueue(0, state=Task.SUCCEEDED)
 
+        t = a.queue(3)
+        t.state = Task.SLEEPING
+        t.due = timezone.now() + datetime.timedelta(hours=1)
+        t.save()
+
+        self.assertQueue(1, state=Task.SLEEPING)
+        self.assertQueue(2, state=Task.QUEUED)
+        self.assertQueue(0, state=Task.SUCCEEDED)
+
         management.call_command("worker", "--once")
 
+        self.assertQueue(1, state=Task.SLEEPING)
         self.assertQueue(1, state=Task.QUEUED)
         self.assertQueue(1, state=Task.SUCCEEDED)
 
         management.call_command("worker", "--once")
 
+        self.assertQueue(1, state=Task.SLEEPING)
+        self.assertQueue(0, state=Task.QUEUED)
+        self.assertQueue(2, state=Task.SUCCEEDED)
+
+        management.call_command("worker", "--once")
+
+        self.assertQueue(1, state=Task.SLEEPING)
         self.assertQueue(0, state=Task.QUEUED)
         self.assertQueue(2, state=Task.SUCCEEDED)
 
@@ -234,6 +252,116 @@ class TestDjango_toosimple_q(TestCase):
         self.assertQueue(2, function='normal', state=Task.QUEUED)
         self.assertQueue(1, function='unique', state=Task.SUCCEEDED)
         self.assertQueue(2, function='normal', state=Task.SUCCEEDED)
+
+    def test_task_retries(self):
+        """Checking task retries"""
+
+        @register_task("div_zero", retries=10)
+        def div_zero(x):
+            return x/0
+
+        self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+        self.assertQueue(0, function='div_zero', state=Task.SLEEPING)
+        self.assertQueue(0, function='div_zero', state=Task.FAILED)
+
+        div_zero.queue(1)
+
+        management.call_command("worker", "--until_done")
+
+        self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+        self.assertQueue(0, function='div_zero', state=Task.SLEEPING)
+        self.assertQueue(11, function='div_zero', state=Task.FAILED)
+
+    def test_task_retries_delay(self):
+        """Checking task retries with delay"""
+
+        @register_task("div_zero", retries=10, retry_delay=10)
+        def div_zero(x):
+            return x/0
+
+        # # TODO : use decorator instead once https://github.com/spulec/freezegun/issues/262 is fixed
+        initial_datetime = datetime.datetime(year=2020, month=1, day=1)
+        with freeze_time(initial_datetime) as frozen_datetime:
+
+            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+            self.assertQueue(0, function='div_zero', state=Task.SLEEPING)
+            self.assertQueue(0, function='div_zero', state=Task.FAILED)
+
+            div_zero.queue(1)
+
+            management.call_command("worker", "--until_done")
+
+            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
+            self.assertQueue(1, function='div_zero', state=Task.FAILED)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 10)
+
+            # if we don't wait, no further task will be processed
+            management.call_command("worker", "--until_done")
+
+            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
+            self.assertQueue(1, function='div_zero', state=Task.FAILED)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 10)
+
+            # if we wait a bit more than 10 seconds, one retry will be done
+            frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=11))
+
+            management.call_command("worker", "--until_done")
+
+            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
+            self.assertQueue(2, function='div_zero', state=Task.FAILED)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 9)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 20)
+
+    def test_task_retries_delay_unique(self):
+        """Checking unique task retries with delay"""
+
+        @register_task("div_zero", retries=10, retry_delay=10, unique=True)
+        def div_zero(x):
+            return x/0
+
+        # # TODO : use decorator instead once https://github.com/spulec/freezegun/issues/262 is fixed
+        initial_datetime = datetime.datetime(year=2020, month=1, day=1)
+        with freeze_time(initial_datetime) as frozen_datetime:
+
+            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+            self.assertQueue(0, function='div_zero', state=Task.SLEEPING)
+            self.assertQueue(0, function='div_zero', state=Task.FAILED)
+
+            div_zero.queue(1)
+
+            management.call_command("worker", "--until_done")
+
+            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
+            self.assertQueue(1, function='div_zero', state=Task.FAILED)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 10)
+
+            # if we don't wait, no further task will be processed
+            management.call_command("worker", "--until_done")
+
+            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
+            self.assertQueue(1, function='div_zero', state=Task.FAILED)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 10)
+
+            # if we requeue the task, it will be run
+            div_zero.queue(1)
+            frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=11))
+
+            management.call_command("worker", "--until_done")
+
+            self.assertQueue(0, function='div_zero', state=Task.QUEUED)
+            self.assertQueue(1, function='div_zero', state=Task.SLEEPING)
+            self.assertQueue(2, function='div_zero', state=Task.FAILED)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 9)
+            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retry_delay, 20)
 
     def test_schedule(self):
         """Testing schedules"""

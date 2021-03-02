@@ -1,9 +1,10 @@
 from django.core.exceptions import ImproperlyConfigured
+from django.utils import timezone
 
 from .registry import tasks, schedules
 
 
-def register_task(name=None, queue='default', priority=0, unique=False):
+def register_task(name=None, queue='default', priority=0, unique=False, retries=0, retry_delay=0):
     """Attaches ._task_name attribute, the .queue() method and adds the callable to the tasks registry"""
 
     def inner(func):
@@ -14,20 +15,32 @@ def register_task(name=None, queue='default', priority=0, unique=False):
 
         def enqueue(*args_, **kwargs_):
             from .models import Task
-            if unique and Task.objects.filter(
-                function=func._task_name,
-                args=args_,
-                kwargs=kwargs_,
-                queue=queue,
-                state=Task.QUEUED
-            ).exists():
-                return False
+
+            if unique:
+                existing_tasks = Task.objects.filter(
+                    function=func._task_name,
+                    args=args_,
+                    kwargs=kwargs_,
+                    queue=queue,
+                )
+                # If already queued, we don't do anything
+                if existing_tasks.filter(state=Task.QUEUED).exists():
+                    return False
+                # If there's a sleeping task, we set it's due date to now
+                if existing_tasks.filter(state=Task.SLEEPING).exists():
+                    task = existing_tasks.first()
+                    task.due = timezone.now()
+                    task.save()
+                    return False
+
             return Task.objects.create(
                 function=func._task_name,
                 args=args_,
                 kwargs=kwargs_,
                 queue=queue,
-                priority=priority
+                priority=priority,
+                retries=retries,
+                retry_delay=retry_delay,
             )
         func.queue = enqueue
         tasks[func._task_name] = func

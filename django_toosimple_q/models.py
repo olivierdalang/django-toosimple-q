@@ -15,6 +15,7 @@ from .logging import logger
 
 class Task(models.Model):
     QUEUED = "QUEUED"
+    SLEEPING = "SLEEPING"
     PROCESSING = "PROCESSING"
     FAILED = "FAILED"
     SUCCEEDED = "SUCCEEDED"
@@ -23,6 +24,7 @@ class Task(models.Model):
 
     state_choices = (
         (QUEUED, "QUEUED"),
+        (SLEEPING, "SLEEPING"),
         (PROCESSING, "PROCESSING"),
         (FAILED, "FAILED"),
         (SUCCEEDED, "SUCCEEDED"),
@@ -35,7 +37,10 @@ class Task(models.Model):
     kwargs = PickledObjectField(blank=True, default=dict)
     queue = models.CharField(max_length=32, default='default')
     priority = models.IntegerField(default=0)
+    retries = models.IntegerField(default=0, help_text="retries left, -1 means infinite")
+    retry_delay = models.IntegerField(default=0, help_text="Delay before next retry in seconds. Will double after each failure.")
 
+    due = models.DateTimeField(default=timezone.now)
     created = models.DateTimeField(default=timezone.now)
     started = models.DateTimeField(blank=True, null=True)
     finished = models.DateTimeField(blank=True, null=True)
@@ -50,7 +55,9 @@ class Task(models.Model):
 
     @property
     def icon(self):
-        if self.state == Task.QUEUED:
+        if self.state == Task.SLEEPING:
+            return "💤"
+        elif self.state == Task.QUEUED:
             return "⌚"
         elif self.state == Task.PROCESSING:
             return "🚧"
@@ -72,7 +79,7 @@ class Task(models.Model):
         """
 
         self.refresh_from_db()
-        if self.state != Task.QUEUED:
+        if self.state != Task.QUEUED and not (self.state == Task.SLEEPING and timezone.now() >= self.due):
             # this task was executed from another worker in the mean time
             return True
 
@@ -117,7 +124,8 @@ class Task(models.Model):
             self.stdout = stdout.getvalue()
             self.stderr = stderr.getvalue()
             self.save()
-            if gracefully_stopped:
+
+            if gracefully_stopped or self.retries != 0:
                 # We create a replacement task
                 logger.info(f'Creating a replacement task for {self}')
                 Task.objects.create(
@@ -126,6 +134,10 @@ class Task(models.Model):
                     kwargs=self.kwargs,
                     priority=self.priority,
                     created=self.created,
+                    retries=self.retries - 1 if self.retries > 0 else -1,
+                    retry_delay=self.retry_delay * 2,
+                    state=Task.SLEEPING,
+                    due=timezone.now() + datetime.timedelta(seconds=self.retry_delay)
                 )
                 exit(0)
 

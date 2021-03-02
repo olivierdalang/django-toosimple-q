@@ -100,6 +100,14 @@ my_other_task.queue("John")
 my_favourite_task.queue("Peter")  # will be executed before the other one
 ```
 
+You can define `retries=N` and `retry_delay=S` to retry the task in case of failure. The delay will double on each failure.
+
+```python
+@register_task(retries=10, retry_delay=60)
+def send_email():
+    ...
+```
+
 You can mark a task as `unique=True` if the task shouldn't be queued again if already queued with the same arguments. This is usefull for tasks such as cleaning or refreshing.
 
 ```python
@@ -196,6 +204,9 @@ $ python manage.py test
 
 ## Changelog
 
+- in progress : v0.2.0
+  - added `retries`, `retry_delay` options for tasks
+  -
 - 2020-11-12 : v0.1.0
   - fixed bug where updating schedule failed
   - fixed worker not doing all available tasks for each tick

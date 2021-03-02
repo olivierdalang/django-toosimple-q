@@ -5,6 +5,7 @@ import logging
 
 from django.core.management.base import BaseCommand
 from django.utils.translation import ugettext as _
+from django.utils import timezone
 
 from ...registry import tasks, schedules
 from ...models import Schedule, Task
@@ -96,6 +97,9 @@ class Command(BaseCommand):
         logger.debug(f"Checking schedules...")
         for schedule in Schedule.objects.all():
             did_something |= schedule.execute()
+
+        logger.debug(f"Waking up tasks...")
+        Task.objects.filter(state=Task.SLEEPING).filter(due__lte=timezone.now()).update(state=Task.QUEUED)
 
         logger.debug(f"Checking tasks...")
         tasks = Task.objects.filter(state=Task.QUEUED)
