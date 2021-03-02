@@ -27,7 +27,7 @@ jobs:
         python -m pip install Django~=$DJANGO_VERSION
     - name: Install dependencies
       run: |
-        pip install -r requirements_tests.txt
+        pip install -r requirements-dev.txt
         pip install -r requirements.txt
     - name: Lint with flake8
       run: |
