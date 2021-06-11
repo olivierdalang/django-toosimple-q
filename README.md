@@ -215,6 +215,7 @@ $ pre-commit install
 
 - in progress : v0.2.0
   - added `retries`, `retry_delay` options for tasks
+  - improve logging
 
 - 2020-11-12 : v0.1.0
   - fixed bug where updating schedule failed

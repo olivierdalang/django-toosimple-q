@@ -99,7 +99,7 @@ class Task(models.Model):
             self.save()
             return True
 
-        logger.info(f"[{timezone.now()}] executing : {self}")
+        logger.debug(f"Executing : {self}")
 
         self.started = timezone.now()
         self.state = Task.PROCESSING
@@ -127,6 +127,7 @@ class Task(models.Model):
             self.state = Task.INTERRUPTED
             gracefully_stopped = True
         except Exception:
+            logger.warning(f"{self} failed !")
             self.state = Task.FAILED
             self.result = traceback.format_exc()
         finally:
@@ -195,7 +196,7 @@ class Schedule(models.Model):
         )
         while last_check is None or next_due <= timezone.now():
 
-            logger.info(f"[{timezone.now()}] due : {self}")
+            logger.debug(f"Due : {self}")
 
             t = tasks[self.function].queue(*self.args, **self.kwargs)
             if t:
