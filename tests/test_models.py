@@ -271,7 +271,8 @@ class TestDjango_toosimple_q(TestCase):
 
         self.assertQueue(0, function="div_zero", state=Task.QUEUED)
         self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
-        self.assertQueue(11, function="div_zero", state=Task.FAILED)
+        self.assertQueue(10, function="div_zero", state=Task.RETRIED)
+        self.assertQueue(1, function="div_zero", state=Task.FAILED)
 
     def test_task_retries_delay(self):
         """Checking task retries with delay"""
@@ -293,23 +294,19 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(1, function="div_zero", state=Task.FAILED)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
-            self.assertEqual(
-                Task.objects.filter(state=Task.FAILED).last().retry_delay, 10
-            )
+            self.assertEqual(Task.objects.last().retries, 9)
+            self.assertEqual(Task.objects.last().retry_delay, 20)
 
             # if we don't wait, no further task will be processed
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(1, function="div_zero", state=Task.FAILED)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
-            self.assertEqual(
-                Task.objects.filter(state=Task.FAILED).last().retry_delay, 10
-            )
+            self.assertEqual(Task.objects.last().retries, 9)
+            self.assertEqual(Task.objects.last().retry_delay, 20)
 
             # if we wait a bit more than 10 seconds, one retry will be done
             frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=11))
@@ -317,12 +314,22 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(2, function="div_zero", state=Task.RETRIED)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(2, function="div_zero", state=Task.FAILED)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 9)
-            self.assertEqual(
-                Task.objects.filter(state=Task.FAILED).last().retry_delay, 20
-            )
+            self.assertEqual(Task.objects.last().retries, 8)
+            self.assertEqual(Task.objects.last().retry_delay, 40)
+
+            # if we wait a bit more than 10+20, then 10+20+40 seconds, two more retries will be done
+            frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=31))
+            management.call_command("worker", "--until_done")
+            frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=71))
+            management.call_command("worker", "--until_done")
+
+            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(4, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+            self.assertEqual(Task.objects.last().retries, 6)
+            self.assertEqual(Task.objects.last().retry_delay, 160)
 
     def test_task_retries_delay_unique(self):
         """Checking unique task retries with delay"""
@@ -344,37 +351,37 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(1, function="div_zero", state=Task.FAILED)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
-            self.assertEqual(
-                Task.objects.filter(state=Task.FAILED).last().retry_delay, 10
-            )
+            self.assertEqual(Task.objects.last().retries, 9)
+            self.assertEqual(Task.objects.last().retry_delay, 20)
 
             # if we don't wait, no further task will be processed
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(1, function="div_zero", state=Task.FAILED)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 10)
-            self.assertEqual(
-                Task.objects.filter(state=Task.FAILED).last().retry_delay, 10
-            )
+            self.assertEqual(Task.objects.last().retries, 9)
+            self.assertEqual(Task.objects.last().retry_delay, 20)
 
             # if we requeue the task, it will be run
             div_zero.queue(1)
-            frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=11))
+            # frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=11))
+
+            self.assertQueue(1, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
+            self.assertEqual(Task.objects.last().retries, 9)
+            self.assertEqual(Task.objects.last().retry_delay, 20)
 
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+            self.assertQueue(2, function="div_zero", state=Task.RETRIED)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(2, function="div_zero", state=Task.FAILED)
-            self.assertEqual(Task.objects.filter(state=Task.FAILED).last().retries, 9)
-            self.assertEqual(
-                Task.objects.filter(state=Task.FAILED).last().retry_delay, 20
-            )
+            self.assertEqual(Task.objects.last().retries, 8)
+            self.assertEqual(Task.objects.last().retry_delay, 40)
 
     def test_schedule(self):
         """Testing schedules"""

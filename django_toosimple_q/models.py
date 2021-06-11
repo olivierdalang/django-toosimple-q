@@ -16,6 +16,7 @@ class Task(models.Model):
     QUEUED = "QUEUED"
     SLEEPING = "SLEEPING"
     PROCESSING = "PROCESSING"
+    RETRIED = "RETRIED"
     FAILED = "FAILED"
     SUCCEEDED = "SUCCEEDED"
     INVALID = "INVALID"
@@ -26,6 +27,7 @@ class Task(models.Model):
         (SLEEPING, "SLEEPING"),
         (PROCESSING, "PROCESSING"),
         (FAILED, "FAILED"),
+        (RETRIED, "RETRIED"),
         (SUCCEEDED, "SUCCEEDED"),
         (INVALID, "INVALID"),
         (INTERRUPTED, "INTERRUPTED"),
@@ -69,6 +71,8 @@ class Task(models.Model):
             return "✔️"
         elif self.state == Task.FAILED:
             return "❌"
+        elif self.state == Task.RETRIED:
+            return "🔶"
         elif self.state == Task.INTERRUPTED:
             return "🛑"
         else:  # if self.state == Task.INVALID:
@@ -129,9 +133,9 @@ class Task(models.Model):
             self.finished = timezone.now()
             self.stdout = stdout.getvalue()
             self.stderr = stderr.getvalue()
-            self.save()
 
             if gracefully_stopped or self.retries != 0:
+
                 # We create a replacement task
                 logger.info(f"Creating a replacement task for {self}")
                 Task.objects.create(
@@ -145,6 +149,9 @@ class Task(models.Model):
                     state=Task.SLEEPING,
                     due=timezone.now() + datetime.timedelta(seconds=self.retry_delay),
                 )
+                self.state = Task.RETRIED
+
+            self.save()
 
         return True
 

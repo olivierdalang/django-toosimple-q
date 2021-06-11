@@ -26,13 +26,15 @@ def register_task(
                     queue=queue,
                 )
                 # If already queued, we don't do anything
-                if existing_tasks.filter(state=Task.QUEUED).exists():
+                queued_task = existing_tasks.filter(state=Task.QUEUED).first()
+                if queued_task is not None:
                     return False
                 # If there's a sleeping task, we set it's due date to now
-                if existing_tasks.filter(state=Task.SLEEPING).exists():
-                    task = existing_tasks.first()
-                    task.due = timezone.now()
-                    task.save()
+                sleeping_task = existing_tasks.filter(state=Task.SLEEPING).first()
+                if sleeping_task is not None:
+                    sleeping_task.due = timezone.now()
+                    sleeping_task.state = Task.QUEUED
+                    sleeping_task.save()
                     return False
 
             return Task.objects.create(
