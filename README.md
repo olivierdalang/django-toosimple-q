@@ -213,7 +213,7 @@ $ pre-commit install
 
 ## Changelog
 
-- in progress : v0.2.0
+- 2021-06-11 : v0.2.0
   - added `retries`, `retry_delay` options for tasks
   - improve logging
 
