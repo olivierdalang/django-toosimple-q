@@ -24,7 +24,7 @@ class TaskAdmin(admin.ModelAdmin):
         "result_",
     ]
     list_display_links = ["function"]
-    list_filter = ["function", "queue"]
+    list_filter = ["function", "queue", "state"]
     actions = ["action_requeue"]
     ordering = ["-created"]
     readonly_fields = ["args", "kwargs", "result"]
