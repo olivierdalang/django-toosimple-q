@@ -10,25 +10,21 @@ from django_toosimple_q.decorators import register_task, schedule
 from django_toosimple_q.models import Schedule, Task
 from django_toosimple_q.registry import schedules, tasks
 
+from .utils import QueueAssertionMixin
 
-class TestDjango_toosimple_q(TestCase):
+
+class TestCore(TestCase, QueueAssertionMixin):
     def setUp(self):
+        self.__schedules_before = schedules.copy()
+        self.__tasks_before = tasks.copy()
         schedules.clear()
         tasks.clear()
 
     def tearDown(self):
-        pass
-
-    def assertQueue(self, count, function=None, state=None):
-        tasks = Task.objects.all()
-        if function:
-            tasks = tasks.filter(function=function)
-        if state:
-            tasks = tasks.filter(state=state)
-        self.assertEquals(tasks.count(), count)
-
-    def assertTask(self, task, state):
-        self.assertEquals(Task.objects.get(pk=task.pk).state, state)
+        schedules.clear()
+        tasks.clear()
+        schedules.update(self.__schedules_before)
+        tasks.update(self.__tasks_before)
 
     def test_task_states(self):
         """Checking correctness of task states"""
@@ -280,8 +276,8 @@ class TestDjango_toosimple_q(TestCase):
 
         self.assertQueue(0, function="div_zero", state=Task.QUEUED)
         self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
-        self.assertQueue(10, function="div_zero", state=Task.RETRIED)
-        self.assertQueue(1, function="div_zero", state=Task.FAILED)
+        self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=False)
+        self.assertQueue(10, function="div_zero", state=Task.FAILED, replaced=True)
         self.assertQueue(11)
 
     def test_task_retries_delay(self):
@@ -304,7 +300,7 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
             self.assertQueue(2)
             self.assertEqual(Task.objects.last().retries, 9)
@@ -314,7 +310,7 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
             self.assertQueue(2)
             self.assertEqual(Task.objects.last().retries, 9)
@@ -326,7 +322,7 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(2, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(2, function="div_zero", state=Task.FAILED, replaced=True)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
             self.assertQueue(3)
             self.assertEqual(Task.objects.last().retries, 8)
@@ -339,7 +335,7 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(4, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(4, function="div_zero", state=Task.FAILED, replaced=True)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
             self.assertQueue(5)
             self.assertEqual(Task.objects.last().retries, 6)
@@ -365,7 +361,7 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
             self.assertQueue(2)
             self.assertEqual(Task.objects.last().retries, 9)
@@ -375,7 +371,7 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
             self.assertQueue(2)
             self.assertEqual(Task.objects.last().retries, 9)
@@ -386,7 +382,7 @@ class TestDjango_toosimple_q(TestCase):
             self.assertQueue(2)
 
             self.assertQueue(1, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
             self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
             self.assertQueue(2)
             self.assertEqual(Task.objects.last().retries, 9)
@@ -395,7 +391,7 @@ class TestDjango_toosimple_q(TestCase):
             management.call_command("worker", "--until_done")
 
             self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(2, function="div_zero", state=Task.RETRIED)
+            self.assertQueue(2, function="div_zero", state=Task.FAILED, replaced=True)
             self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
             self.assertQueue(3)
             self.assertEqual(Task.objects.last().retries, 8)

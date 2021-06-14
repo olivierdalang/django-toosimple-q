@@ -19,15 +19,16 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sites",
     "django.contrib.messages",
+    "django_toosimple_q.contrib.mail",
     "django_toosimple_q",
 ]
 
 SITE_ID = 1
 
 MIDDLEWARE = (
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
 )
 
 TEMPLATES = [

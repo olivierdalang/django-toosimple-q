@@ -16,7 +16,6 @@ class Task(models.Model):
     QUEUED = "QUEUED"
     SLEEPING = "SLEEPING"
     PROCESSING = "PROCESSING"
-    RETRIED = "RETRIED"
     FAILED = "FAILED"
     SUCCEEDED = "SUCCEEDED"
     INVALID = "INVALID"
@@ -27,7 +26,6 @@ class Task(models.Model):
         (SLEEPING, "SLEEPING"),
         (PROCESSING, "PROCESSING"),
         (FAILED, "FAILED"),
-        (RETRIED, "RETRIED"),
         (SUCCEEDED, "SUCCEEDED"),
         (INVALID, "INVALID"),
         (INTERRUPTED, "INTERRUPTED"),
@@ -52,6 +50,9 @@ class Task(models.Model):
     finished = models.DateTimeField(blank=True, null=True)
     state = models.CharField(max_length=32, choices=state_choices, default=QUEUED)
     result = PickledObjectField(blank=True, null=True)
+    replaced_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL
+    )
 
     stdout = models.TextField(blank=True, default="")
     stderr = models.TextField(blank=True, default="")
@@ -71,12 +72,12 @@ class Task(models.Model):
             return "✔️"
         elif self.state == Task.FAILED:
             return "❌"
-        elif self.state == Task.RETRIED:
-            return "🔶"
         elif self.state == Task.INTERRUPTED:
             return "🛑"
-        else:  # if self.state == Task.INVALID:
-            return "❔"
+        elif self.state == Task.INVALID:
+            return "⭕️"
+        else:
+            return "❓"
 
     def execute(self):
         """Execute the task.
@@ -97,6 +98,7 @@ class Task(models.Model):
             # this task is not in the registry
             self.state = Task.INVALID
             self.save()
+            logger.warning(f"{self} not found in registry [{list(tasks.keys())}]")
             return True
 
         logger.debug(f"Executing : {self}")
@@ -105,7 +107,6 @@ class Task(models.Model):
         self.state = Task.PROCESSING
         self.save()
 
-        gracefully_stopped = False
         try:
             stdout = io.StringIO()
             stderr = io.StringIO()
@@ -117,44 +118,54 @@ class Task(models.Model):
             #     mod, call = self.function.rsplit(".", 1)
             #     callable = getattr(import_module(mod), call)
 
-            with contextlib.redirect_stderr(stderr):
-                with contextlib.redirect_stdout(stdout):
-                    self.result = callable(*self.args, **self.kwargs)
+            try:
+                with contextlib.redirect_stderr(stderr):
+                    with contextlib.redirect_stdout(stdout):
+                        self.result = callable(*self.args, **self.kwargs)
+                self.state = Task.SUCCEEDED
+            except Exception:
+                logger.warning(f"{self} failed !")
+                self.state = Task.FAILED
+                self.result = traceback.format_exc()
+                if self.retries != 0:
+                    self.create_replacement(is_retry=True)
+            finally:
+                self.finished = timezone.now()
+                self.stdout = stdout.getvalue()
+                self.stderr = stderr.getvalue()
+                self.save()
 
-            self.state = Task.SUCCEEDED
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, SystemExit) as e:
             logger.critical(f"{self} got interrupted !")
             self.state = Task.INTERRUPTED
-            gracefully_stopped = True
-        except Exception:
-            logger.warning(f"{self} failed !")
-            self.state = Task.FAILED
-            self.result = traceback.format_exc()
-        finally:
-            self.finished = timezone.now()
-            self.stdout = stdout.getvalue()
-            self.stderr = stderr.getvalue()
-
-            if gracefully_stopped or self.retries != 0:
-
-                # We create a replacement task
-                logger.info(f"Creating a replacement task for {self}")
-                Task.objects.create(
-                    function=self.function,
-                    args=self.args,
-                    kwargs=self.kwargs,
-                    priority=self.priority,
-                    created=self.created,
-                    retries=self.retries - 1 if self.retries > 0 else -1,
-                    retry_delay=self.retry_delay * 2,
-                    state=Task.SLEEPING,
-                    due=timezone.now() + datetime.timedelta(seconds=self.retry_delay),
-                )
-                self.state = Task.RETRIED
-
+            self.create_replacement(is_retry=False)
             self.save()
+            raise e
 
         return True
+
+    def create_replacement(self, is_retry):
+        if is_retry:
+            retries = self.retries - 1 if self.retries > 0 else -1
+            delay = self.retry_delay * 2
+        else:
+            retries = self.retries
+            delay = self.retry_delay
+
+        logger.info(f"Creating a replacement task for {self}")
+        replaced_by = Task.objects.create(
+            function=self.function,
+            args=self.args,
+            kwargs=self.kwargs,
+            priority=self.priority,
+            created=self.created,
+            retries=retries,
+            retry_delay=delay,
+            state=Task.SLEEPING,
+            due=timezone.now() + datetime.timedelta(seconds=self.retry_delay),
+        )
+        self.replaced_by = replaced_by
+        self.save()
 
 
 class Schedule(models.Model):

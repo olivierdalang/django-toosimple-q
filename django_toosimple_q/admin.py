@@ -21,6 +21,7 @@ class TaskAdmin(admin.ModelAdmin):
         "started_",
         "finished_",
         "icon",
+        "replacement_",
         "result_",
     ]
     list_display_links = ["function"]
@@ -46,6 +47,10 @@ class TaskAdmin(admin.ModelAdmin):
 
     def finished_(self, obj):
         return naturaltime(obj.finished)
+
+    def replacement_(self, obj):
+        if obj.replacement:
+            return f"{obj.replacement.icon} [{obj.replacement.pk}]"
 
     def action_requeue(self, request, queryset):
         for task in queryset:

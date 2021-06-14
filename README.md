@@ -194,6 +194,29 @@ optional arguments:
                         debugging)
 ```
 
+## Contrib apps
+
+### django_toosimple_q.contrib.mail
+
+A queued email backend to send emails asynchronously, preventing your website from failing completely in case the upstream backend is down.
+
+#### Installation
+
+Enable and configure the app in `settings.py` :
+```python
+INSTALLED_APPS = [
+    ...
+    'django_toosimple_q.contrib.mail',
+    ...
+]
+
+EMAIL_BACKEND = 'django_toosimple_q.contrib.mail.backends.QueueBackend'
+
+# Actual Django email backend used, defaults to django.core.mail.backends.smtp.EmailBackend, see https://docs.djangoproject.com/en/3.2/ref/settings/#email-backend
+TOOSIMPLEQ_EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+```
+
+
 ## Dev
 
 ### Tests
@@ -212,6 +235,10 @@ $ pre-commit install
 ```
 
 ## Changelog
+
+- upcomming release
+  - added `contrib.mail`
+  - task replacement now tracked with a FK instead of a state
 
 - 2021-06-11 : v0.2.0
   - added `retries`, `retry_delay` options for tasks
