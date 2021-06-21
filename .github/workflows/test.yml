@@ -17,6 +17,20 @@ jobs:
         - 2.2
         - 3.1
         - 3.2
+        use-postgres:
+        - true
+        - false
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - uses: actions/checkout@v1
@@ -44,5 +58,7 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test
+      env:
+        USE_POSTGRES: ${{ matrix.use-postgres }}
       run: |
         python manage.py test

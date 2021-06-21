@@ -221,10 +221,23 @@ TOOSIMPLEQ_EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 ### Tests
 
+To run tests locally (by default, tests runs against an in-memory sqlite database):
+
 ```shell
 $ pip install -r requirements-dev.txt
 $ python manage.py test
 ```
+
+To run tests against postgres, run the following commands before :
+```shell
+# Start a local postgres database
+$ docker run -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
+# Set and env var
+$ export USE_POSTGRES=true # on Windows:`$Env:USE_POSTGRES = "true"`
+```
+
+Tests are run automatically on github.
+
 
 ### Contribute
 
@@ -239,6 +252,7 @@ $ pre-commit install
 - upcomming release
   - added `contrib.mail`
   - task replacement now tracked with a FK instead of a state
+  - also run tests on postgres
 
 - 2021-06-11 : v0.2.0
   - added `retries`, `retry_delay` options for tasks
