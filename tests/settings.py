@@ -1,5 +1,4 @@
 import os
-from distutils.util import strtobool
 
 DEBUG = True
 USE_TZ = True
@@ -7,7 +6,8 @@ USE_TZ = True
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "_ijq6*+k4!wxrkh8=ps%-qz(f-0m-q)f5qemnc5cck7usceg5j"
 
-if strtobool(os.getenv("USE_POSTGRES", "False")):
+backend = os.getenv("TOOSIMPLEQ_TEST_DB", "sqlite")
+if backend == "postgres":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -18,7 +18,7 @@ if strtobool(os.getenv("USE_POSTGRES", "False")):
             "PASSWORD": "postgres",
         }
     }
-else:
+elif backend == "sqlite":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",

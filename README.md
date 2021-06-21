@@ -233,7 +233,7 @@ To run tests against postgres, run the following commands before :
 # Start a local postgres database
 $ docker run -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
 # Set and env var
-$ export USE_POSTGRES=true # on Windows:`$Env:USE_POSTGRES = "true"`
+$ export TOOSIMPLEQ_TEST_DB=postgres # on Windows:`$Env:TOOSIMPLEQ_TEST_DB = "postgres"`
 ```
 
 Tests are run automatically on github.

@@ -5,6 +5,8 @@ on: [push]
 jobs:
   test:
 
+    name: Tests py${{ matrix.python-version }} / dj${{ matrix.django-version }} / ${{ matrix.db-backend }}
+
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -17,9 +19,9 @@ jobs:
         - 2.2
         - 3.1
         - 3.2
-        use-postgres:
-        - true
-        - false
+        db-backend:
+        - "sqlite"
+        - "postgres"
 
     services:
       postgres:
@@ -31,6 +33,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
     - uses: actions/checkout@v1
@@ -59,6 +63,6 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test
       env:
-        USE_POSTGRES: ${{ matrix.use-postgres }}
+        TOOSIMPLEQ_TEST_DB: ${{ matrix.db-backend }}
       run: |
         python manage.py test
