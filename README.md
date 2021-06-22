@@ -167,6 +167,16 @@ def my_task(time):
     return f"Good {time} John !"
 ```
 
+You may get the schedule's cron datetime provided as a keyword argument to the task using the `datetime_kwarg` argument :
+
+```python
+@schedule(cron="30 8 * * *", datetime_kwarg="scheduled_on")
+@register_task()
+def my_task(scheduled_on):
+    return f"This was scheduled for {scheduled_on.isoformat()}."
+```
+
+
 ### Management comment
 
 Besides standard django management commands arguments, the management command supports following arguments.
@@ -253,6 +263,7 @@ $ pre-commit install
   - added `contrib.mail`
   - task replacement now tracked with a FK instead of a state
   - also run tests on postgres
+  - added `datetime_kwarg` argument to schedules
 
 - 2021-06-11 : v0.2.0
   - added `retries`, `retry_delay` options for tasks

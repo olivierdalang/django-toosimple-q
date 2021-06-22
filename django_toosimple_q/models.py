@@ -1,9 +1,9 @@
 import contextlib
-import datetime
 import io
 import traceback
+from datetime import datetime, timedelta
 
-from croniter import croniter
+from croniter import croniter, croniter_range
 from django.db import models
 from django.utils import timezone
 from picklefield.fields import PickledObjectField
@@ -162,7 +162,7 @@ class Task(models.Model):
             retries=retries,
             retry_delay=delay,
             state=Task.SLEEPING,
-            due=timezone.now() + datetime.timedelta(seconds=self.retry_delay),
+            due=timezone.now() + timedelta(seconds=self.retry_delay),
         )
         self.replaced_by = replaced_by
         self.save()
@@ -174,6 +174,7 @@ class Schedule(models.Model):
     function = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
+    datetime_kwarg = models.CharField(max_length=1024, blank=True, null=True)
 
     last_check = models.DateTimeField(null=True, default=timezone.now)
     catch_up = models.BooleanField(default=False)
@@ -202,26 +203,28 @@ class Schedule(models.Model):
         self.save()
 
         did_something = False
-        next_due = croniter(self.cron, last_check or timezone.now()).get_next(
-            datetime.datetime
-        )
-        while last_check is None or next_due <= timezone.now():
+
+        if last_check is None:
+            next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
+        else:
+            next_dues = list(croniter_range(last_check, timezone.now(), self.cron))
+            if not self.catch_up and len(next_dues) > 1:
+                next_dues = [next_dues[-1]]
+
+        for next_due in next_dues:
 
             logger.debug(f"Due : {self}")
 
-            t = tasks[self.function].queue(*self.args, **self.kwargs)
+            dt_kwarg = {}
+            if self.datetime_kwarg:
+                dt_kwarg = {self.datetime_kwarg: next_due}
+
+            t = tasks[self.function].queue(*self.args, **self.kwargs, **dt_kwarg)
             if t:
                 self.last_run = t
                 self.save()
 
             did_something = True
-
-            if self.catch_up:
-                last_check = next_due
-            else:
-                last_check = timezone.now()
-
-            next_due = croniter(self.cron, last_check).get_next(datetime.datetime)
 
         return did_something
 

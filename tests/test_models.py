@@ -397,42 +397,49 @@ class TestCore(TestCase, QueueAssertionMixin):
     def test_schedule(self, frozen_datetime):
         """Testing schedules"""
 
-        @schedule(cron="0 12 * * *")
+        @schedule(cron="0 12 * * *", datetime_kwarg="scheduled_on")
         @register_task("normal")
-        def a():
-            pass
+        def a(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        @schedule(cron="0 12 * * *", last_check=None)
+        @schedule(cron="0 12 * * *", last_check=None, datetime_kwarg="scheduled_on")
         @register_task("autostart")
-        def b():
-            pass
+        def b(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        @schedule(cron="0 12 * * *", catch_up=True)
+        @schedule(cron="0 12 * * *", catch_up=True, datetime_kwarg="scheduled_on")
         @register_task("catchup")
-        def c():
-            pass
+        def c(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        @schedule(cron="0 12 * * *", last_check=None, catch_up=True)
+        @schedule(
+            cron="0 12 * * *",
+            last_check=None,
+            catch_up=True,
+            datetime_kwarg="scheduled_on",
+        )
         @register_task("autostartcatchup")
-        def d():
-            pass
+        def d(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
         @schedule(
             cron="0 12 * * *",
             last_check=datetime.datetime(2019, 12, 31, tzinfo=UTC),
+            datetime_kwarg="scheduled_on",
         )
         @register_task("lastcheck")
-        def e():
-            pass
+        def e(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
         @schedule(
             cron="0 12 * * *",
             last_check=datetime.datetime(2019, 12, 30, tzinfo=UTC),
+            datetime_kwarg="scheduled_on",
             catch_up=True,
         )
         @register_task("lastcheckcatchup")
-        def f():
-            pass
+        def f(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
         self.assertEquals(Schedule.objects.count(), 0)
         self.assertQueue(0)
@@ -490,6 +497,68 @@ class TestCore(TestCase, QueueAssertionMixin):
 
         # make sure all tasks succeeded
         self.assertQueue(23, state=Task.SUCCEEDED)
+
+        # make sure we got correct dates
+        def results_list(function_name):
+            return list(
+                Task.objects.filter(function=function_name).values_list(
+                    "result", flat=True
+                )
+            )
+
+        self.assertEqual(
+            results_list("normal"),
+            [
+                "2020-01-01 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
+        self.assertEqual(
+            results_list("autostart"),
+            [
+                "2019-12-31 12:00",
+                "2020-01-01 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
+        self.assertEqual(
+            results_list("catchup"),
+            [
+                "2020-01-01 12:00",
+                "2020-01-02 12:00",
+                "2020-01-03 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
+        self.assertEqual(
+            results_list("autostartcatchup"),
+            [
+                "2019-12-31 12:00",
+                "2020-01-01 12:00",
+                "2020-01-02 12:00",
+                "2020-01-03 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
+        self.assertEqual(
+            results_list("lastcheck"),
+            [
+                "2019-12-31 12:00",
+                "2020-01-01 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
+        self.assertEqual(
+            results_list("lastcheckcatchup"),
+            [
+                "2019-12-30 12:00",
+                "2019-12-31 12:00",
+                "2020-01-01 12:00",
+                "2020-01-02 12:00",
+                "2020-01-03 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
 
     def test_named_queues(self):
         """Checking named queues"""
