@@ -25,7 +25,13 @@ setup(
     url="https://github.com/olivierdalang/django-toosimple-q",
     packages=find_packages(),
     include_package_data=True,
-    install_requires=open("requirements.txt").readlines(),
+    # TODO : once https://github.com/taichino/croniter/pull/171 is merged and requirements.txt is updated, re-enable parsing requirements.txt
+    # install_requires=open("requirements.txt").readlines(),
+    install_requires=[
+        "django>=2.0",
+        "django-picklefield~=2.0",
+        "croniter @ https://github.com/olivierdalang/croniter/archive/f390dc00f41ef0b1cea7eec1ba328f1650d6c8dd.zip",
+    ],
     license="MIT",
     zip_safe=False,
     keywords="django-toosimple-q",
