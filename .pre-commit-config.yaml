@@ -1,4 +1,5 @@
-
+# files: '^.*\.py|.*\.tpl|.*\.sql|.*\.yaml|.*\.txt|.*\.md$'
+# exclude: '^.*\.py|.*\.tpl|.*\.sql|.*\.yaml|.*\.txt|.*\.md$'
 
 repos:
   # Fix end of files
@@ -12,7 +13,7 @@ repos:
           - '--fix=lf'
 
   # Remove unused imports/variables
-  - repo: git@github.com:myint/autoflake.git
+  - repo: https://github.com/myint/autoflake
     rev: v1.4
     hooks:
       - id: autoflake
@@ -27,13 +28,8 @@ repos:
     hooks:
       - id: isort
         args:
-          - -m
-          - "3"
-          - -l
-          - "88"
-          - --trailing-comma
-          - --known-local-folder
-          - coanse
+          - --profile
+          - black
 
   # Black formatting
   - repo: https://github.com/psf/black
