@@ -1,3 +1,5 @@
+import threading
+
 from django.db.models import Count
 
 from django_toosimple_q.models import Task
@@ -49,3 +51,21 @@ class QueueAssertionMixin:
             raise AssertionError(
                 f"Expected {expected_state}, got {actual_state} [{task}]"
             )
+
+
+class ExceptionThrowingThread(threading.Thread):
+    """
+    Thread that rethrows exception when joined
+    """
+
+    def run(self, *args, **kwargs):
+        self.exc = None
+        try:
+            super().run(*args, **kwargs)
+        except BaseException as e:
+            self.exc = e
+
+    def join(self):
+        super().join()
+        if self.exc:
+            raise Exception("Exception in thread") from self.exc

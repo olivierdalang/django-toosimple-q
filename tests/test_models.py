@@ -1,5 +1,4 @@
 import datetime
-import threading
 
 from django.core import management
 from django.db import close_old_connections
@@ -11,7 +10,7 @@ from pytz import UTC
 from django_toosimple_q.decorators import register_task, schedule
 from django_toosimple_q.models import Schedule, Task
 
-from .utils import IsolatedRegistryMixin, QueueAssertionMixin
+from .utils import ExceptionThrowingThread, IsolatedRegistryMixin, QueueAssertionMixin
 
 
 class TestCore(IsolatedRegistryMixin, QueueAssertionMixin, TestCase):
@@ -633,7 +632,7 @@ class TestConcurrency(IsolatedRegistryMixin, QueueAssertionMixin, TransactionTes
 
         threads = []
         for _ in range(TestConcurrency.THREAD_COUNT):
-            thread = threading.Thread(target=call_worker)
+            thread = ExceptionThrowingThread(target=call_worker)
             threads.append(thread)
 
         for thread in threads:
@@ -671,7 +670,7 @@ class TestConcurrency(IsolatedRegistryMixin, QueueAssertionMixin, TransactionTes
         results = []
         threads = []
         for _ in range(TestConcurrency.THREAD_COUNT):
-            thread = threading.Thread(target=call_worker, args=[results])
+            thread = ExceptionThrowingThread(target=call_worker, args=[results])
             threads.append(thread)
 
         for thread in threads:
@@ -710,7 +709,7 @@ class TestConcurrency(IsolatedRegistryMixin, QueueAssertionMixin, TransactionTes
         results = []
         threads = []
         for _ in range(TestConcurrency.THREAD_COUNT):
-            thread = threading.Thread(target=call_worker, args=[results])
+            thread = ExceptionThrowingThread(target=call_worker, args=[results])
             threads.append(thread)
 
         for thread in threads:

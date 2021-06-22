@@ -22,7 +22,16 @@ elif backend == "sqlite":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
+            "NAME": "db.sqlite3",
+            "OPTIONS": {
+                "timeout": 20,
+            },
+            "TEST": {
+                "NAME": "db.test.sqlite3",
+                "OPTIONS": {
+                    "timeout": 20,
+                },
+            },
         }
     }
 
