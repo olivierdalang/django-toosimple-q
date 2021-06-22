@@ -280,222 +280,216 @@ class TestCore(TestCase, QueueAssertionMixin):
         self.assertQueue(10, function="div_zero", state=Task.FAILED, replaced=True)
         self.assertQueue(11)
 
-    def test_task_retries_delay(self):
+    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
+    def test_task_retries_delay(self, frozen_datetime):
         """Checking task retries with delay"""
+
+        initial_datetime = datetime.datetime.now()
 
         @register_task("div_zero", retries=10, retry_delay=10)
         def div_zero(x):
             return x / 0
 
-        # # TODO : use decorator instead once https://github.com/spulec/freezegun/issues/262 is fixed
-        initial_datetime = datetime.datetime(year=2020, month=1, day=1)
-        with freeze_time(initial_datetime) as frozen_datetime:
+        self.assertQueue(0)
 
-            self.assertQueue(0)
+        div_zero.queue(1)
 
-            div_zero.queue(1)
+        self.assertQueue(1)
 
-            self.assertQueue(1)
+        management.call_command("worker", "--until_done")
 
-            management.call_command("worker", "--until_done")
+        self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
+        self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(2)
+        self.assertEqual(Task.objects.last().retries, 9)
+        self.assertEqual(Task.objects.last().retry_delay, 20)
 
-            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
-            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(2)
-            self.assertEqual(Task.objects.last().retries, 9)
-            self.assertEqual(Task.objects.last().retry_delay, 20)
+        # if we don't wait, no further task will be processed
+        management.call_command("worker", "--until_done")
 
-            # if we don't wait, no further task will be processed
-            management.call_command("worker", "--until_done")
+        self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
+        self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(2)
+        self.assertEqual(Task.objects.last().retries, 9)
+        self.assertEqual(Task.objects.last().retry_delay, 20)
 
-            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
-            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(2)
-            self.assertEqual(Task.objects.last().retries, 9)
-            self.assertEqual(Task.objects.last().retry_delay, 20)
+        # if we wait a bit more than 10 seconds, one retry will be done
+        frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=11))
 
-            # if we wait a bit more than 10 seconds, one retry will be done
-            frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=11))
+        management.call_command("worker", "--until_done")
 
-            management.call_command("worker", "--until_done")
+        self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(2, function="div_zero", state=Task.FAILED, replaced=True)
+        self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(3)
+        self.assertEqual(Task.objects.last().retries, 8)
+        self.assertEqual(Task.objects.last().retry_delay, 40)
 
-            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(2, function="div_zero", state=Task.FAILED, replaced=True)
-            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(3)
-            self.assertEqual(Task.objects.last().retries, 8)
-            self.assertEqual(Task.objects.last().retry_delay, 40)
+        # if we wait a bit more than 10+20, then 10+20+40 seconds, two more retries will be done
+        frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=31))
+        management.call_command("worker", "--until_done")
+        frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=71))
+        management.call_command("worker", "--until_done")
 
-            # if we wait a bit more than 10+20, then 10+20+40 seconds, two more retries will be done
-            frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=31))
-            management.call_command("worker", "--until_done")
-            frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=71))
-            management.call_command("worker", "--until_done")
+        self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(4, function="div_zero", state=Task.FAILED, replaced=True)
+        self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(5)
+        self.assertEqual(Task.objects.last().retries, 6)
+        self.assertEqual(Task.objects.last().retry_delay, 160)
 
-            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(4, function="div_zero", state=Task.FAILED, replaced=True)
-            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(5)
-            self.assertEqual(Task.objects.last().retries, 6)
-            self.assertEqual(Task.objects.last().retry_delay, 160)
-
-    def test_task_retries_delay_unique(self):
+    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
+    def test_task_retries_delay_unique(self, frozen_datetime):
         """Checking unique task retries with delay"""
 
         @register_task("div_zero", retries=10, retry_delay=10, unique=True)
         def div_zero(x):
             return x / 0
 
-        # # TODO : use decorator instead once https://github.com/spulec/freezegun/issues/262 is fixed
-        initial_datetime = datetime.datetime(year=2020, month=1, day=1)
-        with freeze_time(initial_datetime) as frozen_datetime:
+        self.assertQueue(0)
 
-            self.assertQueue(0)
+        div_zero.queue(1)
 
-            div_zero.queue(1)
+        self.assertQueue(1)
 
-            self.assertQueue(1)
+        management.call_command("worker", "--until_done")
 
-            management.call_command("worker", "--until_done")
+        self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
+        self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(2)
+        self.assertEqual(Task.objects.last().retries, 9)
+        self.assertEqual(Task.objects.last().retry_delay, 20)
 
-            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
-            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(2)
-            self.assertEqual(Task.objects.last().retries, 9)
-            self.assertEqual(Task.objects.last().retry_delay, 20)
+        # if we don't wait, no further task will be processed
+        management.call_command("worker", "--until_done")
 
-            # if we don't wait, no further task will be processed
-            management.call_command("worker", "--until_done")
+        self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
+        self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(2)
+        self.assertEqual(Task.objects.last().retries, 9)
+        self.assertEqual(Task.objects.last().retry_delay, 20)
 
-            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
-            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(2)
-            self.assertEqual(Task.objects.last().retries, 9)
-            self.assertEqual(Task.objects.last().retry_delay, 20)
+        # if we requeue the task, it will be run immediatly
+        div_zero.queue(1)
+        self.assertQueue(2)
 
-            # if we requeue the task, it will be run immediatly
-            div_zero.queue(1)
-            self.assertQueue(2)
+        self.assertQueue(1, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
+        self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(2)
+        self.assertEqual(Task.objects.last().retries, 9)
+        self.assertEqual(Task.objects.last().retry_delay, 20)
 
-            self.assertQueue(1, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(1, function="div_zero", state=Task.FAILED, replaced=True)
-            self.assertQueue(0, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(2)
-            self.assertEqual(Task.objects.last().retries, 9)
-            self.assertEqual(Task.objects.last().retry_delay, 20)
+        management.call_command("worker", "--until_done")
 
-            management.call_command("worker", "--until_done")
+        self.assertQueue(0, function="div_zero", state=Task.QUEUED)
+        self.assertQueue(2, function="div_zero", state=Task.FAILED, replaced=True)
+        self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
+        self.assertQueue(3)
+        self.assertEqual(Task.objects.last().retries, 8)
+        self.assertEqual(Task.objects.last().retry_delay, 40)
 
-            self.assertQueue(0, function="div_zero", state=Task.QUEUED)
-            self.assertQueue(2, function="div_zero", state=Task.FAILED, replaced=True)
-            self.assertQueue(1, function="div_zero", state=Task.SLEEPING)
-            self.assertQueue(3)
-            self.assertEqual(Task.objects.last().retries, 8)
-            self.assertEqual(Task.objects.last().retry_delay, 40)
-
-    def test_schedule(self):
+    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
+    def test_schedule(self, frozen_datetime):
         """Testing schedules"""
 
-        # TODO : use decorator instead once https://github.com/spulec/freezegun/issues/262 is fixed
-        with freeze_time("2020-01-01") as frozen_datetime:
+        @schedule(cron="0 12 * * *")
+        @register_task("normal")
+        def a():
+            pass
 
-            @schedule(cron="0 12 * * *")
-            @register_task("normal")
-            def a():
-                pass
+        @schedule(cron="0 12 * * *", last_check=None)
+        @register_task("autostart")
+        def b():
+            pass
 
-            @schedule(cron="0 12 * * *", last_check=None)
-            @register_task("autostart")
-            def b():
-                pass
+        @schedule(cron="0 12 * * *", catch_up=True)
+        @register_task("catchup")
+        def c():
+            pass
 
-            @schedule(cron="0 12 * * *", catch_up=True)
-            @register_task("catchup")
-            def c():
-                pass
+        @schedule(cron="0 12 * * *", last_check=None, catch_up=True)
+        @register_task("autostartcatchup")
+        def d():
+            pass
 
-            @schedule(cron="0 12 * * *", last_check=None, catch_up=True)
-            @register_task("autostartcatchup")
-            def d():
-                pass
+        @schedule(
+            cron="0 12 * * *",
+            last_check=datetime.datetime(2019, 12, 31, tzinfo=UTC),
+        )
+        @register_task("lastcheck")
+        def e():
+            pass
 
-            @schedule(
-                cron="0 12 * * *",
-                last_check=datetime.datetime(2019, 12, 31, tzinfo=UTC),
-            )
-            @register_task("lastcheck")
-            def e():
-                pass
+        @schedule(
+            cron="0 12 * * *",
+            last_check=datetime.datetime(2019, 12, 30, tzinfo=UTC),
+            catch_up=True,
+        )
+        @register_task("lastcheckcatchup")
+        def f():
+            pass
 
-            @schedule(
-                cron="0 12 * * *",
-                last_check=datetime.datetime(2019, 12, 30, tzinfo=UTC),
-                catch_up=True,
-            )
-            @register_task("lastcheckcatchup")
-            def f():
-                pass
+        self.assertEquals(Schedule.objects.count(), 0)
+        self.assertQueue(0)
 
-            self.assertEquals(Schedule.objects.count(), 0)
-            self.assertQueue(0)
+        management.call_command("worker", "--recreate_only")
 
-            management.call_command("worker", "--recreate_only")
+        self.assertEquals(Schedule.objects.count(), 6)
+        self.assertQueue(0)
 
-            self.assertEquals(Schedule.objects.count(), 6)
-            self.assertQueue(0)
+        management.call_command("worker", "--no_recreate", "--until_done")
 
-            management.call_command("worker", "--no_recreate", "--until_done")
+        # first run, only tasks with last_check=None should run as no time passed
+        self.assertQueue(0, function="normal")
+        self.assertQueue(1, function="autostart")
+        self.assertQueue(0, function="catchup")
+        self.assertQueue(1, function="autostartcatchup")
+        self.assertQueue(1, function="lastcheck")
+        self.assertQueue(2, function="lastcheckcatchup")
+        self.assertQueue(5)
 
-            # first run, only tasks with last_check=None should run as no time passed
-            self.assertQueue(0, function="normal")
-            self.assertQueue(1, function="autostart")
-            self.assertQueue(0, function="catchup")
-            self.assertQueue(1, function="autostartcatchup")
-            self.assertQueue(1, function="lastcheck")
-            self.assertQueue(2, function="lastcheckcatchup")
-            self.assertQueue(5)
+        management.call_command("worker", "--no_recreate", "--until_done")
 
-            management.call_command("worker", "--no_recreate", "--until_done")
+        # second run, no time passed so no change
+        self.assertQueue(0, function="normal")
+        self.assertQueue(1, function="autostart")
+        self.assertQueue(0, function="catchup")
+        self.assertQueue(1, function="autostartcatchup")
+        self.assertQueue(1, function="lastcheck")
+        self.assertQueue(2, function="lastcheckcatchup")
+        self.assertQueue(5)
 
-            # second run, no time passed so no change
-            self.assertQueue(0, function="normal")
-            self.assertQueue(1, function="autostart")
-            self.assertQueue(0, function="catchup")
-            self.assertQueue(1, function="autostartcatchup")
-            self.assertQueue(1, function="lastcheck")
-            self.assertQueue(2, function="lastcheckcatchup")
-            self.assertQueue(5)
+        frozen_datetime.move_to("2020-01-02")
+        management.call_command("worker", "--no_recreate", "--until_done")
 
-            frozen_datetime.move_to("2020-01-02")
-            management.call_command("worker", "--no_recreate", "--until_done")
+        # one day passed, all tasks should have run once
+        self.assertQueue(1, function="normal")
+        self.assertQueue(2, function="autostart")
+        self.assertQueue(1, function="catchup")
+        self.assertQueue(2, function="autostartcatchup")
+        self.assertQueue(2, function="lastcheck")
+        self.assertQueue(3, function="lastcheckcatchup")
+        self.assertQueue(11)
 
-            # one day passed, all tasks should have run once
-            self.assertQueue(1, function="normal")
-            self.assertQueue(2, function="autostart")
-            self.assertQueue(1, function="catchup")
-            self.assertQueue(2, function="autostartcatchup")
-            self.assertQueue(2, function="lastcheck")
-            self.assertQueue(3, function="lastcheckcatchup")
-            self.assertQueue(11)
+        frozen_datetime.move_to("2020-01-05")
+        management.call_command("worker", "--no_recreate", "--until_done")
 
-            frozen_datetime.move_to("2020-01-05")
-            management.call_command("worker", "--no_recreate", "--until_done")
+        # three day passed, catch_up should have run thrice and other once
+        self.assertQueue(2, function="normal")
+        self.assertQueue(3, function="autostart")
+        self.assertQueue(4, function="catchup")
+        self.assertQueue(5, function="autostartcatchup")
+        self.assertQueue(3, function="lastcheck")
+        self.assertQueue(6, function="lastcheckcatchup")
+        self.assertQueue(23)
 
-            # three day passed, catch_up should have run thrice and other once
-            self.assertQueue(2, function="normal")
-            self.assertQueue(3, function="autostart")
-            self.assertQueue(4, function="catchup")
-            self.assertQueue(5, function="autostartcatchup")
-            self.assertQueue(3, function="lastcheck")
-            self.assertQueue(6, function="lastcheckcatchup")
-            self.assertQueue(23)
-
-            # make sure all tasks succeeded
-            self.assertQueue(23, state=Task.SUCCEEDED)
+        # make sure all tasks succeeded
+        self.assertQueue(23, state=Task.SUCCEEDED)
 
     def test_named_queues(self):
         """Checking named queues"""
