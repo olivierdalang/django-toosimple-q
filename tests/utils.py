@@ -6,6 +6,7 @@ from django_toosimple_q.registry import schedules, tasks
 
 class IsolatedRegistryMixin:
     def setUp(self):
+        super().setUp()
         self.__schedules_before = schedules.copy()
         self.__tasks_before = tasks.copy()
         schedules.clear()
@@ -16,6 +17,7 @@ class IsolatedRegistryMixin:
         tasks.clear()
         schedules.update(self.__schedules_before)
         tasks.update(self.__tasks_before)
+        super().tearDown()
 
 
 class QueueAssertionMixin:

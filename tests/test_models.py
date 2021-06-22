@@ -14,7 +14,7 @@ from django_toosimple_q.models import Schedule, Task
 from .utils import IsolatedRegistryMixin, QueueAssertionMixin
 
 
-class TestCore(TestCase, IsolatedRegistryMixin, QueueAssertionMixin):
+class TestCore(IsolatedRegistryMixin, QueueAssertionMixin, TestCase):
     def test_task_states(self):
         """Checking correctness of task states"""
 
@@ -609,7 +609,7 @@ class TestCore(TestCase, IsolatedRegistryMixin, QueueAssertionMixin):
         self.assertTask(task_h, Task.SUCCEEDED)
 
 
-class TestConcurrency(TransactionTestCase, IsolatedRegistryMixin, QueueAssertionMixin):
+class TestConcurrency(IsolatedRegistryMixin, QueueAssertionMixin, TransactionTestCase):
 
     THREAD_COUNT = 8
 
@@ -618,6 +618,9 @@ class TestConcurrency(TransactionTestCase, IsolatedRegistryMixin, QueueAssertion
         Ensure race condition are correctly handled for schedule create,
         e.g. that creating schedule from multiple threads only creates 1 schedule.
         """
+
+        self.assertEquals(Schedule.objects.count(), 0)
+        self.assertQueue(0)
 
         @schedule(cron="0 12 * * *", last_check=None, name="myschedule")
         @register_task(name="mytask")
@@ -648,6 +651,9 @@ class TestConcurrency(TransactionTestCase, IsolatedRegistryMixin, QueueAssertion
         Ensure race condition are correctly handled for schedule execution,
         e.g. that executing schedule from multiple threads only creates 1 task.
         """
+
+        self.assertEquals(Schedule.objects.count(), 0)
+        self.assertQueue(0)
 
         @schedule(cron="0 12 * * *", last_check=None, name="myschedule")
         @register_task(name="mytask")
@@ -685,7 +691,10 @@ class TestConcurrency(TransactionTestCase, IsolatedRegistryMixin, QueueAssertion
         e.g. that running tasks from multiple threads only runs it once.
         """
 
-        @register_task(name="failingtask", retries=3)
+        self.assertEquals(Schedule.objects.count(), 0)
+        self.assertQueue(0)
+
+        @register_task(name="failingtask", retries=3, retry_delay=60)
         def a():
             return 1 / 0
 
