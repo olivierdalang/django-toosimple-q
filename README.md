@@ -253,6 +253,7 @@ $ pre-commit install
   - added `contrib.mail`
   - task replacement now tracked with a FK instead of a state
   - also run tests on postgres
+  - improve concurrency support
 
 - 2021-06-11 : v0.2.0
   - added `retries`, `retry_delay` options for tasks

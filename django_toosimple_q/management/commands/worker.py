@@ -1,15 +1,17 @@
 import datetime
 import logging
 import signal
+import threading
 import time
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import ugettext as _
 
 from ...logging import logger
 from ...models import Schedule, Task
-from ...registry import schedules
+from ...registry import schedules, tasks
 
 
 class Command(BaseCommand):
@@ -69,8 +71,21 @@ class Command(BaseCommand):
 
         # Handle SIGTERM and SIGINT (default_int_handler raises KeyboardInterrupt)
         # see https://stackoverflow.com/a/40785230
-        signal.signal(signal.SIGINT, signal.default_int_handler)
-        signal.signal(signal.SIGTERM, signal.default_int_handler)
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGINT, signal.default_int_handler)
+            signal.signal(signal.SIGTERM, signal.default_int_handler)
+
+        if len(schedules):
+            schedules_names = ", ".join(schedules.keys())
+            logger.info(f"Worker found {len(schedules)} schedules : {schedules_names}")
+        else:
+            logger.info("Worker found no schedules")
+
+        if len(tasks):
+            tasks_names = ", ".join(tasks.keys())
+            logger.info(f"Worker found {len(tasks)} tasks : {tasks_names}")
+        else:
+            logger.info("Worker found no schedules")
 
         if not options["no_recreate"]:
             self.create_schedules()
@@ -109,13 +124,24 @@ class Command(BaseCommand):
             last_run = datetime.datetime.now()
 
     def create_schedules(self):
-        ids = []
-        for schedule_name, defaults in schedules.items():
-            schedule, created = Schedule.objects.update_or_create(
-                name=schedule_name, defaults=defaults
-            )
-            ids.append(schedule.id)
-        Schedule.objects.exclude(id__in=ids).delete()
+        created_count, updated_count, deleted_count = 0, 0, 0
+        with transaction.atomic():
+            # Lock all rows
+            Schedule.objects.select_for_update().all()
+            ids = []
+            for schedule_name, defaults in schedules.items():
+                schedule, created = Schedule.objects.update_or_create(
+                    name=schedule_name, defaults=defaults
+                )
+                ids.append(schedule.id)
+                if created:
+                    created_count += 1
+                else:
+                    updated_count += 1
+            deleted_count = Schedule.objects.exclude(id__in=ids).delete()[0]
+        logger.info(
+            f"Created {created_count}, updated {updated_count}, deleted {deleted_count} schedules."
+        )
 
     def tick(self):
         """Returns True if something happened (so you can loop for testing)"""
@@ -123,22 +149,27 @@ class Command(BaseCommand):
         did_something = False
 
         logger.debug(f"Checking schedules...")
-        for schedule in Schedule.objects.all():
-            did_something |= schedule.execute()
+        with transaction.atomic():
+            for schedule in Schedule.objects.select_for_update():
+                did_something |= schedule.execute_if_needed()
 
         logger.debug(f"Waking up tasks...")
-        Task.objects.filter(state=Task.SLEEPING).filter(due__lte=timezone.now()).update(
-            state=Task.QUEUED
-        )
+        with transaction.atomic():
+            Task.objects.filter(state=Task.SLEEPING).filter(
+                due__lte=timezone.now()
+            ).update(state=Task.QUEUED)
 
         logger.debug(f"Checking tasks...")
-        tasks = Task.objects.filter(state=Task.QUEUED)
-        if self.queues:
-            tasks = tasks.filter(queue__in=self.queues)
-        if self.excluded_queues:
-            tasks = tasks.exclude(queue__in=self.excluded_queues)
-        task = tasks.order_by("-priority", "created").first()
-        if task:
-            did_something |= task.execute()
+        with transaction.atomic():
+            tasks = Task.objects.select_for_update(skip_locked=True)
+            # tasks = Task.objects.all()  # TODO : REPLACE BY LINE ABOVE
+            tasks = tasks.filter(state=Task.QUEUED)
+            if self.queues:
+                tasks = tasks.filter(queue__in=self.queues)
+            if self.excluded_queues:
+                tasks = tasks.exclude(queue__in=self.excluded_queues)
+            task = tasks.order_by("-priority", "created").first()
+            if task:
+                did_something |= task.execute()
 
         return did_something

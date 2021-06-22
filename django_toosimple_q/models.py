@@ -181,8 +181,8 @@ class Schedule(models.Model):
 
     cron = models.CharField(max_length=1024)
 
-    def execute(self):
-        """Execute the schedule.
+    def execute_if_needed(self):
+        """Execute the schedule if needed.
 
         A check is done to make sure the schedule wasn't checked by another worker in the mean time.
 
@@ -195,6 +195,7 @@ class Schedule(models.Model):
         self.refresh_from_db()
         if last_check != self.last_check:
             # this schedule was executed from another worker in the mean time
+            logger.info(f"Already executed : {self}")
             return True
 
         # we update last_check already to reduce race condition chance

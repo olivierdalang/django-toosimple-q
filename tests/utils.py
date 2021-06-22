@@ -1,6 +1,21 @@
 from django.db.models import Count
 
 from django_toosimple_q.models import Task
+from django_toosimple_q.registry import schedules, tasks
+
+
+class IsolatedRegistryMixin:
+    def setUp(self):
+        self.__schedules_before = schedules.copy()
+        self.__tasks_before = tasks.copy()
+        schedules.clear()
+        tasks.clear()
+
+    def tearDown(self):
+        schedules.clear()
+        tasks.clear()
+        schedules.update(self.__schedules_before)
+        tasks.update(self.__tasks_before)
 
 
 class QueueAssertionMixin:

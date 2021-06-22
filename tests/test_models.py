@@ -1,31 +1,20 @@
 import datetime
+import threading
 
 from django.core import management
-from django.test import TestCase
+from django.db import close_old_connections
+from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 from freezegun import freeze_time
 from pytz import UTC
 
 from django_toosimple_q.decorators import register_task, schedule
 from django_toosimple_q.models import Schedule, Task
-from django_toosimple_q.registry import schedules, tasks
 
-from .utils import QueueAssertionMixin
+from .utils import IsolatedRegistryMixin, QueueAssertionMixin
 
 
-class TestCore(TestCase, QueueAssertionMixin):
-    def setUp(self):
-        self.__schedules_before = schedules.copy()
-        self.__tasks_before = tasks.copy()
-        schedules.clear()
-        tasks.clear()
-
-    def tearDown(self):
-        schedules.clear()
-        tasks.clear()
-        schedules.update(self.__schedules_before)
-        tasks.update(self.__tasks_before)
-
+class TestCore(TestCase, IsolatedRegistryMixin, QueueAssertionMixin):
     def test_task_states(self):
         """Checking correctness of task states"""
 
@@ -618,3 +607,111 @@ class TestCore(TestCase, QueueAssertionMixin):
         self.assertTask(task_f, Task.SUCCEEDED)
         self.assertTask(task_g, Task.SUCCEEDED)
         self.assertTask(task_h, Task.SUCCEEDED)
+
+
+class TestConcurrency(TransactionTestCase, IsolatedRegistryMixin, QueueAssertionMixin):
+
+    THREAD_COUNT = 8
+
+    def test_schedule_creation(self):
+        """
+        Ensure race condition are correctly handled for schedule create,
+        e.g. that creating schedule from multiple threads only creates 1 schedule.
+        """
+
+        @schedule(cron="0 12 * * *", last_check=None, name="myschedule")
+        @register_task(name="mytask")
+        def a():
+            return "Done"
+
+        def call_worker():
+            management.call_command("worker", "--recreate_only")
+            close_old_connections()
+
+        threads = []
+        for _ in range(TestConcurrency.THREAD_COUNT):
+            thread = threading.Thread(target=call_worker)
+            threads.append(thread)
+
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        threads = None
+
+        self.assertEquals(Schedule.objects.count(), 1)
+
+    def test_schedule_execution(self):
+        """
+        Ensure race condition are correctly handled for schedule execution,
+        e.g. that executing schedule from multiple threads only creates 1 task.
+        """
+
+        @schedule(cron="0 12 * * *", last_check=None, name="myschedule")
+        @register_task(name="mytask")
+        def a():
+            return "Done"
+
+        management.call_command("worker", "--recreate_only")
+
+        self.assertEquals(Schedule.objects.count(), 1)
+
+        def call_worker(results):
+            management.call_command("worker", "--no_recreate", "--once")
+            close_old_connections()
+
+        results = []
+        threads = []
+        for _ in range(TestConcurrency.THREAD_COUNT):
+            thread = threading.Thread(target=call_worker, args=[results])
+            threads.append(thread)
+
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        threads = None
+
+        self.assertQueue(1, state=Task.SUCCEEDED)
+        self.assertQueue(1)
+
+    def test_task_execution(self):
+        """
+        Ensure race condition are correctly handled for task execution,
+        e.g. that running tasks from multiple threads only runs it once.
+        """
+
+        @register_task(name="failingtask", retries=3)
+        def a():
+            return 1 / 0
+
+        a.queue()
+
+        self.assertQueue(1, state=Task.QUEUED)
+        self.assertQueue(1)
+
+        def call_worker(results):
+            management.call_command("worker", "--once")
+            close_old_connections()
+
+        results = []
+        threads = []
+        for _ in range(TestConcurrency.THREAD_COUNT):
+            thread = threading.Thread(target=call_worker, args=[results])
+            threads.append(thread)
+
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        threads = None
+
+        self.assertQueue(1, state=Task.FAILED)
+        self.assertQueue(1, state=Task.SLEEPING)
+        self.assertQueue(2)
