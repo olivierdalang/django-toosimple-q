@@ -161,9 +161,7 @@ class Command(BaseCommand):
 
         logger.debug(f"Checking tasks...")
         with transaction.atomic():
-            tasks = Task.objects.select_for_update(skip_locked=True)
-            # tasks = Task.objects.all()  # TODO : REPLACE BY LINE ABOVE
-            tasks = tasks.filter(state=Task.QUEUED)
+            tasks = Task.objects.select_for_update().filter(state=Task.QUEUED)
             if self.queues:
                 tasks = tasks.filter(queue__in=self.queues)
             if self.excluded_queues:
