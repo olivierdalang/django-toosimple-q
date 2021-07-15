@@ -4,3 +4,6 @@ psycopg2>=2.8,<2.9
 
 # devenv
 pre-commit
+
+# app deps
+-r requirements.txt
