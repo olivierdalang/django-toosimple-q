@@ -488,9 +488,9 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         # make sure we got correct dates
         def results_list(function_name):
             return list(
-                Task.objects.filter(function=function_name).values_list(
-                    "result", flat=True
-                )
+                Task.objects.order_by("created")
+                .filter(function=function_name)
+                .values_list("result", flat=True)
             )
 
         self.assertEqual(
