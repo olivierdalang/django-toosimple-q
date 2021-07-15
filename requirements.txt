@@ -2,6 +2,4 @@ django>=2.0
 
 # Additional requirements go here
 django-picklefield~=2.0
-# TODO : replace this by croniter>=1.0.??? once https://github.com/taichino/croniter/pull/171 is merged,
-# then also update setup.py to parse this file
-https://github.com/olivierdalang/croniter/archive/f390dc00f41ef0b1cea7eec1ba328f1650d6c8dd.zip#egg=croniter
+croniter==1.0.15
