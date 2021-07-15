@@ -8,7 +8,7 @@ from django_toosimple_q.models import Task
 from .utils import QueueAssertionMixin
 
 
-class TestMail(TestCase, QueueAssertionMixin):
+class TestMail(QueueAssertionMixin, TestCase):
     def setUp(self):
         mail.outbox.clear()
 

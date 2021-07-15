@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sites",
     "django.contrib.messages",
+    "django.contrib.sessions",
     "django_toosimple_q.contrib.mail",
     "django_toosimple_q",
 ]
@@ -49,6 +50,7 @@ MIDDLEWARE = (
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
                 "django.contrib.auth.context_processors.auth",

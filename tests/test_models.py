@@ -8,24 +8,11 @@ from pytz import UTC
 
 from django_toosimple_q.decorators import register_task, schedule
 from django_toosimple_q.models import Schedule, Task
-from django_toosimple_q.registry import schedules, tasks
 
-from .utils import QueueAssertionMixin
+from .utils import EmptyRegistryMixin, QueueAssertionMixin
 
 
-class TestCore(TestCase, QueueAssertionMixin):
-    def setUp(self):
-        self.__schedules_before = schedules.copy()
-        self.__tasks_before = tasks.copy()
-        schedules.clear()
-        tasks.clear()
-
-    def tearDown(self):
-        schedules.clear()
-        tasks.clear()
-        schedules.update(self.__schedules_before)
-        tasks.update(self.__tasks_before)
-
+class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
     def test_task_states(self):
         """Checking correctness of task states"""
 
