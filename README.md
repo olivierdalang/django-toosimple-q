@@ -259,7 +259,7 @@ $ pre-commit install
 
 ## Changelog
 
-- upcomming release
+- 2021-07-15 : v0.3.0
   - added `contrib.mail`
   - task replacement now tracked with a FK instead of a state
   - also run tests on postgres
