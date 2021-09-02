@@ -259,6 +259,10 @@ $ pre-commit install
 
 ## Changelog
 
+
+- master
+  - made `last_check` and `last_run` optional in the admin
+
 - 2021-07-15 : v0.3.0
   - added `contrib.mail`
   - task replacement now tracked with a FK instead of a state

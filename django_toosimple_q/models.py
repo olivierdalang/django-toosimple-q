@@ -176,9 +176,9 @@ class Schedule(models.Model):
     kwargs = PickledObjectField(blank=True, default=dict)
     datetime_kwarg = models.CharField(max_length=1024, blank=True, null=True)
 
-    last_check = models.DateTimeField(null=True, default=timezone.now)
+    last_check = models.DateTimeField(null=True, blank=True, default=timezone.now)
     catch_up = models.BooleanField(default=False)
-    last_run = models.ForeignKey(Task, null=True, on_delete=models.SET_NULL)
+    last_run = models.ForeignKey(Task, null=True, blank=True, on_delete=models.SET_NULL)
 
     cron = models.CharField(max_length=1024)
 
