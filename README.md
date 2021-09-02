@@ -262,6 +262,7 @@ $ pre-commit install
 
 - master
   - made `last_check` and `last_run` optional in the admin
+  - defined `id` fields
 
 - 2021-07-15 : v0.3.0
   - added `contrib.mail`
