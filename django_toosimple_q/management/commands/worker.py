@@ -9,7 +9,7 @@ from django.utils.translation import ugettext as _
 
 from ...logging import logger
 from ...models import Schedule, Task
-from ...registry import schedules
+from ...registry import dump_registry, schedules
 
 
 class Command(BaseCommand):
@@ -71,6 +71,9 @@ class Command(BaseCommand):
         # see https://stackoverflow.com/a/40785230
         signal.signal(signal.SIGINT, signal.default_int_handler)
         signal.signal(signal.SIGTERM, signal.default_int_handler)
+
+        logger.info("Starting worker")
+        dump_registry()
 
         if not options["no_recreate"]:
             self.create_schedules()
