@@ -31,6 +31,7 @@ class Task(models.Model):
         (INTERRUPTED, "INTERRUPTED"),
     )
 
+    id = models.BigAutoField(primary_key=True)
     function = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
@@ -170,6 +171,7 @@ class Task(models.Model):
 
 class Schedule(models.Model):
 
+    id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
     function = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
