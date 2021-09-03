@@ -5,12 +5,12 @@ from django.template.defaultfilters import truncatechars
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Schedule, Task
+from .models import ScheduleExec, TaskExec
 from .registry import tasks
 
 
-@admin.register(Task)
-class TaskAdmin(admin.ModelAdmin):
+@admin.register(TaskExec)
+class TaskExecAdmin(admin.ModelAdmin):
     list_display = [
         "function",
         "args_",
@@ -62,8 +62,8 @@ class TaskAdmin(admin.ModelAdmin):
     action_requeue.short_description = "Requeue task"
 
 
-@admin.register(Schedule)
-class ScheduleAdmin(admin.ModelAdmin):
+@admin.register(ScheduleExec)
+class ScheduleExecAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "function",

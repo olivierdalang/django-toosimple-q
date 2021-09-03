@@ -142,7 +142,7 @@ def short_task():
 By default, `last_check` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `last_check=None`.
 
 ```python
-@schedule(cron="30 8 * * *", last_check=None)
+@schedule_task(cron="30 8 * * *", last_check=None)
 @register_task()
 def my_task(name):
     return f"Good morning {name} !"
@@ -151,7 +151,7 @@ def my_task(name):
 By default, if some crons where missed (e.g. after a server shutdown or if the workers can't keep up with all tasks), the missed tasks will be lost. If you need the tasks to catch up, set `catch_up=True`.
 
 ```python
-@schedule(cron="30 8 * * *", catch_up=True)
+@schedule_task(cron="30 8 * * *", catch_up=True)
 @register_task()
 def my_task(name):
     ...
@@ -160,8 +160,8 @@ def my_task(name):
 You may define multiple schedules for the same task. In this case, it is mandatory to specify a unique name :
 
 ```python
-@schedule(name="morning_routine", cron="30 16 * * *", args=['morning'])
-@schedule(name="afternoon_routine", cron="30 8 * * *", args=['afternoon'])
+@schedule_task(name="morning_routine", cron="30 16 * * *", args=['morning'])
+@schedule_task(name="afternoon_routine", cron="30 8 * * *", args=['afternoon'])
 @register_task()
 def my_task(time):
     return f"Good {time} John !"
@@ -170,7 +170,7 @@ def my_task(time):
 You may get the schedule's cron datetime provided as a keyword argument to the task using the `datetime_kwarg` argument :
 
 ```python
-@schedule(cron="30 8 * * *", datetime_kwarg="scheduled_on")
+@schedule_task(cron="30 8 * * *", datetime_kwarg="scheduled_on")
 @register_task()
 def my_task(scheduled_on):
     return f"This was scheduled for {scheduled_on.isoformat()}."
@@ -262,11 +262,11 @@ $ pre-commit install
 
 ### Terms
 
-TODO : this is not yet aligned with the code !
+**TaskExecution**: a specific planned or past call of a *task*, including inputs (arguments) and outputs. This is a model, whose instanced are typically created using `mycallable.queue()` or from schedules.
+
+TODO : items below are not yet aligned with the code !
 
 **Task**: a callable with a known name in the *registry*. These are typically registered in `tasks.py`.
-
-**TaskExecution**: a specific planned or past call of a *task*, including inputs (arguments) and outputs. This is a model, whose instanced are typically created using `mycallable.queue()` or from schedules.
 
 **Schedule**: a configuration for repeated execution of *tasks*. These are typically configured in `tasks.py`.
 
@@ -279,6 +279,9 @@ TODO : this is not yet aligned with the code !
 
 ## Changelog
 
+- dev **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+  - renamed `@schedule` -> `@schedule_task`
+  - renamed models (`Schedule` -> `ScheduleExec` and `Task` -> `TaskExec`)
 
 - master
   - made `last_check` and `last_run` optional in the admin

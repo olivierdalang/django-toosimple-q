@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext as _
 
 from ...logging import logger
-from ...models import Schedule, Task
+from ...models import ScheduleExec, TaskExec
 from ...registry import dump_registry, schedules
 
 
@@ -114,11 +114,11 @@ class Command(BaseCommand):
     def create_schedules(self):
         ids = []
         for schedule_name, defaults in schedules.items():
-            schedule, created = Schedule.objects.update_or_create(
+            schedule, created = ScheduleExec.objects.update_or_create(
                 name=schedule_name, defaults=defaults
             )
             ids.append(schedule.id)
-        Schedule.objects.exclude(id__in=ids).delete()
+        ScheduleExec.objects.exclude(id__in=ids).delete()
 
     def tick(self):
         """Returns True if something happened (so you can loop for testing)"""
@@ -126,16 +126,16 @@ class Command(BaseCommand):
         did_something = False
 
         logger.debug(f"Checking schedules...")
-        for schedule in Schedule.objects.all():
+        for schedule in ScheduleExec.objects.all():
             did_something |= schedule.execute()
 
         logger.debug(f"Waking up tasks...")
-        Task.objects.filter(state=Task.SLEEPING).filter(due__lte=timezone.now()).update(
-            state=Task.QUEUED
-        )
+        TaskExec.objects.filter(state=TaskExec.SLEEPING).filter(
+            due__lte=timezone.now()
+        ).update(state=TaskExec.QUEUED)
 
         logger.debug(f"Checking tasks...")
-        tasks = Task.objects.filter(state=Task.QUEUED)
+        tasks = TaskExec.objects.filter(state=TaskExec.QUEUED)
         if self.queues:
             tasks = tasks.filter(queue__in=self.queues)
         if self.excluded_queues:

@@ -16,28 +16,28 @@ def register_task(
             func._task_name = func.__globals__["__name__"] + "." + func.__qualname__
 
         def enqueue(*args_, **kwargs_):
-            from .models import Task
+            from .models import TaskExec
 
             if unique:
-                existing_tasks = Task.objects.filter(
+                existing_tasks = TaskExec.objects.filter(
                     function=func._task_name,
                     args=args_,
                     kwargs=kwargs_,
                     queue=queue,
                 )
                 # If already queued, we don't do anything
-                queued_task = existing_tasks.filter(state=Task.QUEUED).first()
+                queued_task = existing_tasks.filter(state=TaskExec.QUEUED).first()
                 if queued_task is not None:
                     return False
                 # If there's a sleeping task, we set it's due date to now
-                sleeping_task = existing_tasks.filter(state=Task.SLEEPING).first()
+                sleeping_task = existing_tasks.filter(state=TaskExec.SLEEPING).first()
                 if sleeping_task is not None:
                     sleeping_task.due = timezone.now()
-                    sleeping_task.state = Task.QUEUED
+                    sleeping_task.state = TaskExec.QUEUED
                     sleeping_task.save()
                     return False
 
-            return Task.objects.create(
+            return TaskExec.objects.create(
                 function=func._task_name,
                 args=args_,
                 kwargs=kwargs_,
@@ -54,7 +54,7 @@ def register_task(
     return inner
 
 
-def schedule(**kwargs):
+def schedule_task(**kwargs):
     """Adds the task to the schedules registry"""
 
     def inner(func):

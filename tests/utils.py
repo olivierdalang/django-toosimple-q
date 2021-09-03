@@ -1,6 +1,6 @@
 from django.db.models import Count
 
-from django_toosimple_q.models import Task
+from django_toosimple_q.models import TaskExec
 from django_toosimple_q.registry import schedules, tasks
 
 
@@ -10,7 +10,7 @@ class QueueAssertionMixin:
     """
 
     def assertQueue(self, expected_count, function=None, state=None, replaced=None):
-        tasks = Task.objects.all()
+        tasks = TaskExec.objects.all()
         if function:
             tasks = tasks.filter(function=function)
         if state:
@@ -20,7 +20,7 @@ class QueueAssertionMixin:
         actual_count = tasks.count()
         if actual_count != expected_count:
             vals = (
-                Task.objects.values("function", "state")
+                TaskExec.objects.values("function", "state")
                 .annotate(count=Count("*"))
                 .order_by("function", "state")
             )
@@ -32,7 +32,7 @@ class QueueAssertionMixin:
             )
 
     def assertTask(self, task, expected_state):
-        actual_state = Task.objects.get(pk=task.pk).state
+        actual_state = TaskExec.objects.get(pk=task.pk).state
         if actual_state != expected_state:
             raise AssertionError(
                 f"Expected {expected_state}, got {actual_state} [{task}]"

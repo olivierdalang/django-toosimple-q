@@ -12,7 +12,12 @@ from .logging import logger
 from .registry import tasks
 
 
-class Task(models.Model):
+class TaskExec(models.Model):
+    """TaskExecution represent a specific planned or past call of a task, including inputs (arguments) and outputs.
+
+    This is a model, whose instanced are typically created using `mycallable.queue()` or from schedules.
+    """
+
     QUEUED = "QUEUED"
     SLEEPING = "SLEEPING"
     PROCESSING = "PROCESSING"
@@ -63,19 +68,19 @@ class Task(models.Model):
 
     @property
     def icon(self):
-        if self.state == Task.SLEEPING:
+        if self.state == TaskExec.SLEEPING:
             return "💤"
-        elif self.state == Task.QUEUED:
+        elif self.state == TaskExec.QUEUED:
             return "⌚"
-        elif self.state == Task.PROCESSING:
+        elif self.state == TaskExec.PROCESSING:
             return "🚧"
-        elif self.state == Task.SUCCEEDED:
+        elif self.state == TaskExec.SUCCEEDED:
             return "✔️"
-        elif self.state == Task.FAILED:
+        elif self.state == TaskExec.FAILED:
             return "❌"
-        elif self.state == Task.INTERRUPTED:
+        elif self.state == TaskExec.INTERRUPTED:
             return "🛑"
-        elif self.state == Task.INVALID:
+        elif self.state == TaskExec.INVALID:
             return "⭕️"
         else:
             return "❓"
@@ -89,15 +94,15 @@ class Task(models.Model):
         """
 
         self.refresh_from_db()
-        if self.state != Task.QUEUED and not (
-            self.state == Task.SLEEPING and timezone.now() >= self.due
+        if self.state != TaskExec.QUEUED and not (
+            self.state == TaskExec.SLEEPING and timezone.now() >= self.due
         ):
             # this task was executed from another worker in the mean time
             return True
 
         if self.function not in tasks.keys():
             # this task is not in the registry
-            self.state = Task.INVALID
+            self.state = TaskExec.INVALID
             self.save()
             logger.warning(f"{self} not found in registry [{list(tasks.keys())}]")
             return True
@@ -105,7 +110,7 @@ class Task(models.Model):
         logger.debug(f"Executing : {self}")
 
         self.started = timezone.now()
-        self.state = Task.PROCESSING
+        self.state = TaskExec.PROCESSING
         self.save()
 
         try:
@@ -123,10 +128,10 @@ class Task(models.Model):
                 with contextlib.redirect_stderr(stderr):
                     with contextlib.redirect_stdout(stdout):
                         self.result = callable(*self.args, **self.kwargs)
-                self.state = Task.SUCCEEDED
+                self.state = TaskExec.SUCCEEDED
             except Exception:
                 logger.warning(f"{self} failed !")
-                self.state = Task.FAILED
+                self.state = TaskExec.FAILED
                 self.result = traceback.format_exc()
                 if self.retries != 0:
                     self.create_replacement(is_retry=True)
@@ -138,7 +143,7 @@ class Task(models.Model):
 
         except (KeyboardInterrupt, SystemExit) as e:
             logger.critical(f"{self} got interrupted !")
-            self.state = Task.INTERRUPTED
+            self.state = TaskExec.INTERRUPTED
             self.create_replacement(is_retry=False)
             self.save()
             raise e
@@ -154,7 +159,7 @@ class Task(models.Model):
             delay = self.retry_delay
 
         logger.info(f"Creating a replacement task for {self}")
-        replaced_by = Task.objects.create(
+        replaced_by = TaskExec.objects.create(
             function=self.function,
             args=self.args,
             kwargs=self.kwargs,
@@ -162,14 +167,14 @@ class Task(models.Model):
             created=self.created,
             retries=retries,
             retry_delay=delay,
-            state=Task.SLEEPING,
+            state=TaskExec.SLEEPING,
             due=timezone.now() + timedelta(seconds=self.retry_delay),
         )
         self.replaced_by = replaced_by
         self.save()
 
 
-class Schedule(models.Model):
+class ScheduleExec(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
@@ -180,7 +185,9 @@ class Schedule(models.Model):
 
     last_check = models.DateTimeField(null=True, blank=True, default=timezone.now)
     catch_up = models.BooleanField(default=False)
-    last_run = models.ForeignKey(Task, null=True, blank=True, on_delete=models.SET_NULL)
+    last_run = models.ForeignKey(
+        TaskExec, null=True, blank=True, on_delete=models.SET_NULL
+    )
 
     cron = models.CharField(max_length=1024)
 
