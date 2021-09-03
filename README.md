@@ -257,6 +257,26 @@ $ pip install -r requirements-dev.txt
 $ pre-commit install
 ```
 
+
+## Internals
+
+### Terms
+
+TODO : this is not yet aligned with the code !
+
+**Task**: a callable with a known name in the *registry*. These are typically registered in `tasks.py`.
+
+**TaskExecution**: a specific planned or past call of a *task*, including inputs (arguments) and outputs. This is a model, whose instanced are typically created using `mycallable.queue()` or from schedules.
+
+**Schedule**: a configuration for repeated execution of *tasks*. These are typically configured in `tasks.py`.
+
+**ScheduleExecution**: the last execution of a *schedule* (e.g. keeps track of the last time a schedule actually lead to generate a task execution).  This is a model, whose instances are created by the worker.
+
+**Registry**: a dictionary keeping all registered schedules and tasks.
+
+**Worker**: a management command that executes schedules and tasks on a regular basis.
+
+
 ## Changelog
 
 
