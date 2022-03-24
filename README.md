@@ -260,7 +260,7 @@ $ pre-commit install
 ## Changelog
 
 
-- master
+- 2022-03-24 : v0.4.0
   - made `last_check` and `last_run` optional in the admin
   - defined `id` fields
 
