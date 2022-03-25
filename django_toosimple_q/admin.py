@@ -12,7 +12,7 @@ from .registry import tasks
 @admin.register(TaskExec)
 class TaskExecAdmin(admin.ModelAdmin):
     list_display = [
-        "function",
+        "task_name",
         "args_",
         "kwargs_",
         "queue",
@@ -24,8 +24,8 @@ class TaskExecAdmin(admin.ModelAdmin):
         "replaced_by_",
         "result_",
     ]
-    list_display_links = ["function"]
-    list_filter = ["function", "queue", "state"]
+    list_display_links = ["task_name"]
+    list_filter = ["task_name", "queue", "state"]
     actions = ["action_requeue"]
     ordering = ["-created"]
     readonly_fields = ["args", "kwargs", "result"]
@@ -54,7 +54,7 @@ class TaskExecAdmin(admin.ModelAdmin):
 
     def action_requeue(self, request, queryset):
         for task in queryset:
-            tasks[task.function].queue(*task.args, **task.kwargs)
+            tasks[task.task_name].queue(*task.args, **task.kwargs)
         self.message_user(
             request, f"{queryset.count()} tasks successfully requeued...", level=SUCCESS
         )

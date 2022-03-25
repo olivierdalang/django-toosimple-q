@@ -34,7 +34,7 @@ class Task:
 
         if self.unique:
             existing_tasks = TaskExec.objects.filter(
-                function=self.name, args=args_, kwargs=kwargs_, queue=self.queue
+                task_name=self.name, args=args_, kwargs=kwargs_, queue=self.queue
             )
             # If already queued, we don't do anything
             queued_task = existing_tasks.filter(state=TaskExec.QUEUED).first()
@@ -49,7 +49,7 @@ class Task:
                 return False
 
         return TaskExec.objects.create(
-            function=self.name,
+            task_name=self.name,
             args=args_,
             kwargs=kwargs_,
             queue=self.queue,

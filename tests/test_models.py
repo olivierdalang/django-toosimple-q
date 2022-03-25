@@ -32,7 +32,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         def b(x):
             return x / 0
 
-        t = TaskExec.objects.create(function="b", args=[2])
+        t = TaskExec.objects.create(task_name="b", args=[2])
         self.assertEqual(t.state, TaskExec.QUEUED)
         t.execute()
         self.assertEqual(t.state, TaskExec.FAILED)
@@ -41,7 +41,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         """Checking task registration"""
 
         # We cannot run arbitrary functions
-        t = TaskExec.objects.create(function="print", args=["test"])
+        t = TaskExec.objects.create(task_name="print", args=["test"])
         self.assertEqual(t.state, TaskExec.QUEUED)
         t.execute()
         self.assertEqual(t.state, TaskExec.INVALID)
@@ -51,7 +51,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         def a(x):
             pass
 
-        t = TaskExec.objects.create(function="a", args=["test"])
+        t = TaskExec.objects.create(task_name="a", args=["test"])
         self.assertEqual(t.state, TaskExec.QUEUED)
         t.execute()
         self.assertEqual(t.state, TaskExec.SUCCEEDED)
@@ -125,84 +125,84 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         p1b.queue(1)
         p2.queue(1)
 
-        self.assertQueue(1, function="p2", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1a", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1b", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="p2", state=TaskExec.SUCCEEDED)
-        self.assertQueue(0, function="p1a", state=TaskExec.SUCCEEDED)
-        self.assertQueue(0, function="p1b", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p2", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1b", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="p2", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p1a", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p1b", state=TaskExec.SUCCEEDED)
         self.assertQueue(3)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function="p2", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1a", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1b", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p2", state=TaskExec.SUCCEEDED)
-        self.assertQueue(0, function="p1a", state=TaskExec.SUCCEEDED)
-        self.assertQueue(0, function="p1b", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p2", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1b", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p2", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p1a", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p1b", state=TaskExec.SUCCEEDED)
         self.assertQueue(3)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function="p2", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="p1a", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1b", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p2", state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, function="p1a", state=TaskExec.SUCCEEDED)
-        self.assertQueue(0, function="p1b", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p2", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="p1a", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1b", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p2", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p1b", state=TaskExec.SUCCEEDED)
         self.assertQueue(3)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function="p2", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="p1a", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="p1b", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p2", state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, function="p1a", state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, function="p1b", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p2", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="p1a", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="p1b", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p2", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p1b", state=TaskExec.SUCCEEDED)
         self.assertQueue(3)
 
         p2.queue(1)
         p1b.queue(1)
         p1a.queue(1)
 
-        self.assertQueue(1, function="p2", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1a", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1b", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p2", state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, function="p1a", state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, function="p1b", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p2", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1b", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p2", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p1b", state=TaskExec.SUCCEEDED)
         self.assertQueue(6)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function="p2", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1a", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1b", state=TaskExec.QUEUED)
-        self.assertQueue(2, function="p2", state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, function="p1a", state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, function="p1b", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p2", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1b", state=TaskExec.QUEUED)
+        self.assertQueue(2, task_name="p2", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p1b", state=TaskExec.SUCCEEDED)
         self.assertQueue(6)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function="p2", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="p1a", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="p1b", state=TaskExec.QUEUED)
-        self.assertQueue(2, function="p2", state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, function="p1a", state=TaskExec.SUCCEEDED)
-        self.assertQueue(2, function="p1b", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p2", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="p1b", state=TaskExec.QUEUED)
+        self.assertQueue(2, task_name="p2", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="p1a", state=TaskExec.SUCCEEDED)
+        self.assertQueue(2, task_name="p1b", state=TaskExec.SUCCEEDED)
         self.assertQueue(6)
 
         management.call_command("worker", "--once")
 
-        self.assertQueue(0, function="p2", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="p1a", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="p1b", state=TaskExec.QUEUED)
-        self.assertQueue(2, function="p2", state=TaskExec.SUCCEEDED)
-        self.assertQueue(2, function="p1a", state=TaskExec.SUCCEEDED)
-        self.assertQueue(2, function="p1b", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="p2", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="p1a", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="p1b", state=TaskExec.QUEUED)
+        self.assertQueue(2, task_name="p2", state=TaskExec.SUCCEEDED)
+        self.assertQueue(2, task_name="p1a", state=TaskExec.SUCCEEDED)
+        self.assertQueue(2, task_name="p1b", state=TaskExec.SUCCEEDED)
         self.assertQueue(6)
 
     def test_task_queuing_with_unique(self):
@@ -223,18 +223,18 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         unique.queue(1)
         unique.queue(1)
 
-        self.assertQueue(1, function="unique", state=TaskExec.QUEUED)
-        self.assertQueue(2, function="normal", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="unique", state=TaskExec.SUCCEEDED)
-        self.assertQueue(0, function="normal", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="unique", state=TaskExec.QUEUED)
+        self.assertQueue(2, task_name="normal", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="unique", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="normal", state=TaskExec.SUCCEEDED)
         self.assertQueue(3)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function="unique", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="normal", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="unique", state=TaskExec.SUCCEEDED)
-        self.assertQueue(2, function="normal", state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, task_name="unique", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="normal", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="unique", state=TaskExec.SUCCEEDED)
+        self.assertQueue(2, task_name="normal", state=TaskExec.SUCCEEDED)
         self.assertQueue(3)
 
         normal.queue(1)
@@ -242,10 +242,10 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         unique.queue(1)
         unique.queue(1)
 
-        self.assertQueue(1, function="unique", state=TaskExec.QUEUED)
-        self.assertQueue(2, function="normal", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="unique", state=TaskExec.SUCCEEDED)
-        self.assertQueue(2, function="normal", state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, task_name="unique", state=TaskExec.QUEUED)
+        self.assertQueue(2, task_name="normal", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="unique", state=TaskExec.SUCCEEDED)
+        self.assertQueue(2, task_name="normal", state=TaskExec.SUCCEEDED)
         self.assertQueue(6)
 
     def test_task_retries(self):
@@ -261,10 +261,10 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function="div_zero", state=TaskExec.QUEUED)
-        self.assertQueue(0, function="div_zero", state=TaskExec.SLEEPING)
-        self.assertQueue(1, function="div_zero", state=TaskExec.FAILED, replaced=False)
-        self.assertQueue(10, function="div_zero", state=TaskExec.FAILED, replaced=True)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.QUEUED)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.SLEEPING)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.FAILED, replaced=False)
+        self.assertQueue(10, task_name="div_zero", state=TaskExec.FAILED, replaced=True)
         self.assertQueue(11)
 
     @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
@@ -285,9 +285,9 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function="div_zero", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="div_zero", state=TaskExec.FAILED, replaced=True)
-        self.assertQueue(1, function="div_zero", state=TaskExec.SLEEPING)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.FAILED, replaced=True)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.SLEEPING)
         self.assertQueue(2)
         self.assertEqual(TaskExec.objects.last().retries, 9)
         self.assertEqual(TaskExec.objects.last().retry_delay, 20)
@@ -295,9 +295,9 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         # if we don't wait, no further task will be processed
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function="div_zero", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="div_zero", state=TaskExec.FAILED, replaced=True)
-        self.assertQueue(1, function="div_zero", state=TaskExec.SLEEPING)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.FAILED, replaced=True)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.SLEEPING)
         self.assertQueue(2)
         self.assertEqual(TaskExec.objects.last().retries, 9)
         self.assertEqual(TaskExec.objects.last().retry_delay, 20)
@@ -307,9 +307,9 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function="div_zero", state=TaskExec.QUEUED)
-        self.assertQueue(2, function="div_zero", state=TaskExec.FAILED, replaced=True)
-        self.assertQueue(1, function="div_zero", state=TaskExec.SLEEPING)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.QUEUED)
+        self.assertQueue(2, task_name="div_zero", state=TaskExec.FAILED, replaced=True)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.SLEEPING)
         self.assertQueue(3)
         self.assertEqual(TaskExec.objects.last().retries, 8)
         self.assertEqual(TaskExec.objects.last().retry_delay, 40)
@@ -320,9 +320,9 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=71))
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function="div_zero", state=TaskExec.QUEUED)
-        self.assertQueue(4, function="div_zero", state=TaskExec.FAILED, replaced=True)
-        self.assertQueue(1, function="div_zero", state=TaskExec.SLEEPING)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.QUEUED)
+        self.assertQueue(4, task_name="div_zero", state=TaskExec.FAILED, replaced=True)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.SLEEPING)
         self.assertQueue(5)
         self.assertEqual(TaskExec.objects.last().retries, 6)
         self.assertEqual(TaskExec.objects.last().retry_delay, 160)
@@ -343,9 +343,9 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function="div_zero", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="div_zero", state=TaskExec.FAILED, replaced=True)
-        self.assertQueue(1, function="div_zero", state=TaskExec.SLEEPING)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.FAILED, replaced=True)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.SLEEPING)
         self.assertQueue(2)
         self.assertEqual(TaskExec.objects.last().retries, 9)
         self.assertEqual(TaskExec.objects.last().retry_delay, 20)
@@ -353,9 +353,9 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         # if we don't wait, no further task will be processed
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function="div_zero", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="div_zero", state=TaskExec.FAILED, replaced=True)
-        self.assertQueue(1, function="div_zero", state=TaskExec.SLEEPING)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.FAILED, replaced=True)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.SLEEPING)
         self.assertQueue(2)
         self.assertEqual(TaskExec.objects.last().retries, 9)
         self.assertEqual(TaskExec.objects.last().retry_delay, 20)
@@ -364,18 +364,18 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         div_zero.queue(1)
         self.assertQueue(2)
 
-        self.assertQueue(1, function="div_zero", state=TaskExec.QUEUED)
-        self.assertQueue(1, function="div_zero", state=TaskExec.FAILED, replaced=True)
-        self.assertQueue(0, function="div_zero", state=TaskExec.SLEEPING)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.QUEUED)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.FAILED, replaced=True)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.SLEEPING)
         self.assertQueue(2)
         self.assertEqual(TaskExec.objects.last().retries, 9)
         self.assertEqual(TaskExec.objects.last().retry_delay, 20)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(0, function="div_zero", state=TaskExec.QUEUED)
-        self.assertQueue(2, function="div_zero", state=TaskExec.FAILED, replaced=True)
-        self.assertQueue(1, function="div_zero", state=TaskExec.SLEEPING)
+        self.assertQueue(0, task_name="div_zero", state=TaskExec.QUEUED)
+        self.assertQueue(2, task_name="div_zero", state=TaskExec.FAILED, replaced=True)
+        self.assertQueue(1, task_name="div_zero", state=TaskExec.SLEEPING)
         self.assertQueue(3)
         self.assertEqual(TaskExec.objects.last().retries, 8)
         self.assertEqual(TaskExec.objects.last().retry_delay, 40)
@@ -418,49 +418,49 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         management.call_command("worker", "--until_done")
 
         # first run, only tasks with run_on_creation=True should run as no time passed
-        self.assertQueue(0, function="normal")
-        self.assertQueue(1, function="autostart")
-        self.assertQueue(0, function="catchup")
-        self.assertQueue(1, function="autostartcatchup")
+        self.assertQueue(0, task_name="normal")
+        self.assertQueue(1, task_name="autostart")
+        self.assertQueue(0, task_name="catchup")
+        self.assertQueue(1, task_name="autostartcatchup")
         self.assertQueue(2)
 
         management.call_command("worker", "--until_done")
 
         # second run, no time passed so no change
-        self.assertQueue(0, function="normal")
-        self.assertQueue(1, function="autostart")
-        self.assertQueue(0, function="catchup")
-        self.assertQueue(1, function="autostartcatchup")
+        self.assertQueue(0, task_name="normal")
+        self.assertQueue(1, task_name="autostart")
+        self.assertQueue(0, task_name="catchup")
+        self.assertQueue(1, task_name="autostartcatchup")
         self.assertQueue(2)
 
         frozen_datetime.move_to("2020-01-02")
         management.call_command("worker", "--until_done")
 
         # one day passed, all tasks should have run once
-        self.assertQueue(1, function="normal")
-        self.assertQueue(2, function="autostart")
-        self.assertQueue(1, function="catchup")
-        self.assertQueue(2, function="autostartcatchup")
+        self.assertQueue(1, task_name="normal")
+        self.assertQueue(2, task_name="autostart")
+        self.assertQueue(1, task_name="catchup")
+        self.assertQueue(2, task_name="autostartcatchup")
         self.assertQueue(6)
 
         frozen_datetime.move_to("2020-01-05")
         management.call_command("worker", "--until_done")
 
         # three day passed, catch_up should have run thrice and other once
-        self.assertQueue(2, function="normal")
-        self.assertQueue(3, function="autostart")
-        self.assertQueue(4, function="catchup")
-        self.assertQueue(5, function="autostartcatchup")
+        self.assertQueue(2, task_name="normal")
+        self.assertQueue(3, task_name="autostart")
+        self.assertQueue(4, task_name="catchup")
+        self.assertQueue(5, task_name="autostartcatchup")
         self.assertQueue(14)
 
         # make sure all tasks succeeded
         self.assertQueue(14, state=TaskExec.SUCCEEDED)
 
         # make sure we got correct dates
-        def results_list(function_name):
+        def results_list(task_name):
             return list(
                 TaskExec.objects.order_by("created")
-                .filter(function=function_name)
+                .filter(task_name=task_name)
                 .values_list("result", flat=True)
             )
 

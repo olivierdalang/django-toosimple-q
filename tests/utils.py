@@ -9,10 +9,10 @@ class QueueAssertionMixin:
     Adds assertQueue and assertTask helpers
     """
 
-    def assertQueue(self, expected_count, function=None, state=None, replaced=None):
+    def assertQueue(self, expected_count, task_name=None, state=None, replaced=None):
         tasks = TaskExec.objects.all()
-        if function:
-            tasks = tasks.filter(function=function)
+        if task_name:
+            tasks = tasks.filter(task_name=task_name)
         if state:
             tasks = tasks.filter(state=state)
         if replaced is not None:
@@ -20,12 +20,12 @@ class QueueAssertionMixin:
         actual_count = tasks.count()
         if actual_count != expected_count:
             vals = (
-                TaskExec.objects.values("function", "state")
+                TaskExec.objects.values("task_name", "state")
                 .annotate(count=Count("*"))
-                .order_by("function", "state")
+                .order_by("task_name", "state")
             )
             debug = "\n".join(
-                f"{v['function']}/{v['state']} : {v['count']}" for v in vals
+                f"{v['task_name']}/{v['state']} : {v['count']}" for v in vals
             )
             raise AssertionError(
                 f"Expected {expected_count} tasks, got {actual_count} tasks.\n{debug}"

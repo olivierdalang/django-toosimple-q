@@ -36,7 +36,7 @@ class TaskExec(models.Model):
     )
 
     id = models.BigAutoField(primary_key=True)
-    function = models.CharField(max_length=1024)  # TODO: rename function->name
+    task_name = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
     queue = models.CharField(max_length=32, default="default")
@@ -63,7 +63,7 @@ class TaskExec(models.Model):
     stderr = models.TextField(blank=True, default="")
 
     def __str__(self):
-        return f"Task {self.function} {self.icon}"
+        return f"Task {self.task_name} {self.icon}"
 
     @property
     def icon(self):
@@ -99,14 +99,14 @@ class TaskExec(models.Model):
             # this task was executed from another worker in the mean time
             return True
 
-        if self.function not in tasks.keys():
+        if self.task_name not in tasks.keys():
             # this task is not in the registry
             self.state = TaskExec.INVALID
             self.save()
             logger.warning(f"{self} not found in registry [{list(tasks.keys())}]")
             return True
 
-        task = tasks[self.function]
+        task = tasks[self.task_name]
 
         logger.debug(f"Executing : {self}")
 
@@ -117,11 +117,6 @@ class TaskExec(models.Model):
         try:
             stdout = io.StringIO()
             stderr = io.StringIO()
-
-            # TODO : if callable is a string, load the callable using this pseudocode:
-            # if is_string(callable):
-            #     mod, call = self.function.rsplit(".", 1)
-            #     callable = getattr(import_module(mod), call)
 
             try:
                 with contextlib.redirect_stderr(stderr):
@@ -159,7 +154,7 @@ class TaskExec(models.Model):
 
         logger.info(f"Creating a replacement task for {self}")
         replaced_by = TaskExec.objects.create(
-            function=self.function,
+            task_name=self.task_name,
             args=self.args,
             kwargs=self.kwargs,
             priority=self.priority,

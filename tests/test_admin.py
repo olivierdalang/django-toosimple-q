@@ -20,7 +20,7 @@ class TestAdmin(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         def a(x):
             return x * 2
 
-        self.task = TaskExec.objects.create(function="a")
+        self.task = TaskExec.objects.create(task_name="a")
         self.schedule = ScheduleExec.objects.create()
 
     def test_task_admin(self):
