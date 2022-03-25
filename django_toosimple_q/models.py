@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from picklefield.fields import PickledObjectField
 
 
@@ -12,23 +13,14 @@ class TaskExec(models.Model):
     class Meta:
         verbose_name = "Task Execution"
 
-    QUEUED = "QUEUED"
-    SLEEPING = "SLEEPING"
-    PROCESSING = "PROCESSING"
-    FAILED = "FAILED"
-    SUCCEEDED = "SUCCEEDED"
-    INVALID = "INVALID"
-    INTERRUPTED = "INTERRUPTED"
-
-    state_choices = (
-        (QUEUED, "QUEUED"),
-        (SLEEPING, "SLEEPING"),
-        (PROCESSING, "PROCESSING"),
-        (FAILED, "FAILED"),
-        (SUCCEEDED, "SUCCEEDED"),
-        (INVALID, "INVALID"),
-        (INTERRUPTED, "INTERRUPTED"),
-    )
+    class States(models.TextChoices):
+        QUEUED = "QUEUED", _("Queued")
+        SLEEPING = "SLEEPING", _("Sleeping")
+        PROCESSING = "PROCESSING", _("Processing")
+        FAILED = "FAILED", _("Failed")
+        SUCCEEDED = "SUCCEEDED", _("Succeeded")
+        INVALID = "INVALID", _("Invalid")
+        INTERRUPTED = "INTERRUPTED", _("Interrupted")
 
     id = models.BigAutoField(primary_key=True)
     task_name = models.CharField(max_length=1024)
@@ -48,7 +40,9 @@ class TaskExec(models.Model):
     created = models.DateTimeField(default=timezone.now)
     started = models.DateTimeField(blank=True, null=True)
     finished = models.DateTimeField(blank=True, null=True)
-    state = models.CharField(max_length=32, choices=state_choices, default=QUEUED)
+    state = models.CharField(
+        max_length=32, choices=States.choices, default=States.QUEUED
+    )
     result = PickledObjectField(blank=True, null=True)
     error = models.TextField(blank=True, null=True)
     replaced_by = models.ForeignKey(
@@ -63,19 +57,19 @@ class TaskExec(models.Model):
 
     @property
     def icon(self):
-        if self.state == TaskExec.SLEEPING:
+        if self.state == TaskExec.States.SLEEPING:
             return "💤"
-        elif self.state == TaskExec.QUEUED:
+        elif self.state == TaskExec.States.QUEUED:
             return "⌚"
-        elif self.state == TaskExec.PROCESSING:
+        elif self.state == TaskExec.States.PROCESSING:
             return "🚧"
-        elif self.state == TaskExec.SUCCEEDED:
+        elif self.state == TaskExec.States.SUCCEEDED:
             return "✔️"
-        elif self.state == TaskExec.FAILED:
+        elif self.state == TaskExec.States.FAILED:
             return "❌"
-        elif self.state == TaskExec.INTERRUPTED:
+        elif self.state == TaskExec.States.INTERRUPTED:
             return "🛑"
-        elif self.state == TaskExec.INVALID:
+        elif self.state == TaskExec.States.INVALID:
             return "⚠️"
         else:
             return "❓"
@@ -85,13 +79,9 @@ class ScheduleExec(models.Model):
     class Meta:
         verbose_name = "Schedule Execution"
 
-    ACTIVE = "ACTIVE"
-    INVALID = "INVALID"
-
-    state_choices = (
-        (ACTIVE, "ACTIVE"),
-        (INVALID, "INVALID"),
-    )
+    class States(models.TextChoices):
+        ACTIVE = "ACTIVE", _("Active")
+        INVALID = "INVALID", _("Invalid")
 
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
@@ -99,7 +89,9 @@ class ScheduleExec(models.Model):
     last_run = models.ForeignKey(
         TaskExec, null=True, blank=True, on_delete=models.SET_NULL
     )
-    state = models.CharField(max_length=32, choices=state_choices, default=ACTIVE)
+    state = models.CharField(
+        max_length=32, choices=States.choices, default=States.ACTIVE
+    )
 
     def __str__(self):
         return f"Task {self.name} {self.icon}"
@@ -115,9 +107,9 @@ class ScheduleExec(models.Model):
 
     @property
     def icon(self):
-        if self.state == ScheduleExec.ACTIVE:
+        if self.state == ScheduleExec.States.ACTIVE:
             return "🟢"
-        elif self.state == ScheduleExec.INVALID:
+        elif self.state == ScheduleExec.States.INVALID:
             return "⚠️"
         else:
             return "❓"

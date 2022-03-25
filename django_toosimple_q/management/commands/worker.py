@@ -100,7 +100,7 @@ class Command(BaseCommand):
 
         logger.debug(f"Disabling invalid schedules...")
         ScheduleExec.objects.exclude(name__in=schedules_registry.keys()).update(
-            state=ScheduleExec.INVALID
+            state=ScheduleExec.States.INVALID
         )
 
         logger.debug(f"Checking schedules...")
@@ -108,12 +108,12 @@ class Command(BaseCommand):
             did_something |= schedule.execute(self.tick_duration)
 
         logger.debug(f"Waking up tasks...")
-        TaskExec.objects.filter(state=TaskExec.SLEEPING).filter(
+        TaskExec.objects.filter(state=TaskExec.States.SLEEPING).filter(
             due__lte=timezone.now()
-        ).update(state=TaskExec.QUEUED)
+        ).update(state=TaskExec.States.QUEUED)
 
         logger.debug(f"Checking tasks...")
-        tasks_execs = TaskExec.objects.filter(state=TaskExec.QUEUED)
+        tasks_execs = TaskExec.objects.filter(state=TaskExec.States.QUEUED)
         if self.queues:
             tasks_execs = tasks_execs.filter(queue__in=self.queues)
         if self.excluded_queues:
@@ -126,7 +126,7 @@ class Command(BaseCommand):
                 did_something |= task.execute(task_exec)
             else:
                 # If not, we set it as invalid
-                task_exec.state = TaskExec.INVALID
+                task_exec.state = TaskExec.States.INVALID
                 task_exec.save()
                 logger.warning(f"Found invalid task execution: {task_exec}")
                 did_something = True

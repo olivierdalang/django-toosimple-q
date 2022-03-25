@@ -39,14 +39,16 @@ class Task:
                 task_name=self.name, args=args_, kwargs=kwargs_, queue=self.queue
             )
             # If already queued, we don't do anything
-            queued_task = existing_tasks.filter(state=TaskExec.QUEUED).first()
+            queued_task = existing_tasks.filter(state=TaskExec.States.QUEUED).first()
             if queued_task is not None:
                 return False
             # If there's a sleeping task, we set it's due date to now
-            sleeping_task = existing_tasks.filter(state=TaskExec.SLEEPING).first()
+            sleeping_task = existing_tasks.filter(
+                state=TaskExec.States.SLEEPING
+            ).first()
             if sleeping_task is not None:
                 sleeping_task.due = timezone.now()
-                sleeping_task.state = TaskExec.QUEUED
+                sleeping_task.state = TaskExec.States.QUEUED
                 sleeping_task.save()
                 return False
 
@@ -69,8 +71,8 @@ class Task:
         assert self.name == task_exec.task_name
 
         task_exec.refresh_from_db()
-        if task_exec.state != TaskExec.QUEUED and not (
-            task_exec.state == TaskExec.SLEEPING and timezone.now() >= self.due
+        if task_exec.state != TaskExec.States.QUEUED and not (
+            task_exec.state == TaskExec.States.SLEEPING and timezone.now() >= self.due
         ):
             # this task was executed from another worker in the mean time
             return True
@@ -78,7 +80,7 @@ class Task:
         logger.debug(f"Executing : {self}")
 
         task_exec.started = timezone.now()
-        task_exec.state = TaskExec.PROCESSING
+        task_exec.state = TaskExec.States.PROCESSING
         task_exec.save()
 
         try:
@@ -91,10 +93,10 @@ class Task:
                         task_exec.result = self.callable(
                             *task_exec.args, **task_exec.kwargs
                         )
-                task_exec.state = TaskExec.SUCCEEDED
+                task_exec.state = TaskExec.States.SUCCEEDED
             except Exception:
                 logger.warning(f"{task_exec} failed !")
-                task_exec.state = TaskExec.FAILED
+                task_exec.state = TaskExec.States.FAILED
                 task_exec.error = traceback.format_exc()
                 if task_exec.retries != 0:
                     self.create_replacement(task_exec, is_retry=True)
@@ -106,7 +108,7 @@ class Task:
 
         except (KeyboardInterrupt, SystemExit) as e:
             logger.critical(f"{task_exec} got interrupted !")
-            task_exec.state = TaskExec.INTERRUPTED
+            task_exec.state = TaskExec.States.INTERRUPTED
             self.create_replacement(task_exec, is_retry=False)
             task_exec.save()
             raise e
@@ -130,7 +132,7 @@ class Task:
             created=task_exec.created,
             retries=retries,
             retry_delay=delay,
-            state=TaskExec.SLEEPING,
+            state=TaskExec.States.SLEEPING,
             due=timezone.now() + timedelta(seconds=task_exec.retry_delay),
         )
         task_exec.replaced_by = replaced_by

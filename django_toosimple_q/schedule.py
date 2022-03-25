@@ -57,7 +57,7 @@ class Schedule:
 
         # we update last_check already to reduce race condition chance
         execution.last_check = timezone.now()
-        execution.status = ScheduleExec.ACTIVE
+        execution.status = ScheduleExec.States.ACTIVE
         execution.save()
 
         did_something = False

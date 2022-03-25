@@ -58,13 +58,13 @@ class TestMail(QueueAssertionMixin, TestCase):
             ["to@example.com"],
         )
 
-        self.assertQueue(2, state=TaskExec.QUEUED)
+        self.assertQueue(2, state=TaskExec.States.QUEUED)
         self.assertQueue(2)
         self.assertEquals(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(2, state=TaskExec.SUCCEEDED)
+        self.assertQueue(2, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(2)
         self.assertEquals(len(mail.outbox), 2)
 
@@ -89,13 +89,13 @@ class TestMail(QueueAssertionMixin, TestCase):
             ["to@example.com"],
         )
 
-        self.assertQueue(1, state=TaskExec.QUEUED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(1, state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 1)
 
@@ -114,13 +114,13 @@ class TestMail(QueueAssertionMixin, TestCase):
             ["to@example.com"],
         )
 
-        self.assertQueue(1, state=TaskExec.QUEUED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(1, state=TaskExec.FAILED, replaced=True)
-        self.assertQueue(1, state=TaskExec.SLEEPING)
+        self.assertQueue(1, state=TaskExec.States.FAILED, replaced=True)
+        self.assertQueue(1, state=TaskExec.States.SLEEPING)
         self.assertQueue(2)
         self.assertEquals(len(mail.outbox), 0)

@@ -60,13 +60,13 @@ class TestAdmin(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
 
         task_exec = a.queue()
 
-        self.assertQueue(0, state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, state=TaskExec.QUEUED)
+        self.assertQueue(0, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(1, state=TaskExec.SUCCEEDED)
-        self.assertQueue(0, state=TaskExec.QUEUED)
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(0, state=TaskExec.States.QUEUED)
 
         data = {
             "action": "action_requeue",
@@ -75,10 +75,10 @@ class TestAdmin(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         response = self.client.post("/admin/toosimpleq/taskexec/", data, follow=True)
         self.assertEqual(response.status_code, 200)
 
-        self.assertQueue(1, state=TaskExec.SUCCEEDED)
-        self.assertQueue(1, state=TaskExec.QUEUED)
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(2, state=TaskExec.SUCCEEDED)
-        self.assertQueue(0, state=TaskExec.QUEUED)
+        self.assertQueue(2, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(0, state=TaskExec.States.QUEUED)
