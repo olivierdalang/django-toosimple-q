@@ -308,7 +308,7 @@ $ pre-commit install
 
 ## Changelog
 
-- dev **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+- 20xx-xx-xx : v1.0.0 **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - renamed `@schedule` -> `@schedule_task`
   - renamed models (`Schedule` -> `ScheduleExec` and `Task` -> `TaskExec`)
   - task name must now be provided as a kwarg (`@register_task("mytask")` -> `@register_task(name="mytask")`)
