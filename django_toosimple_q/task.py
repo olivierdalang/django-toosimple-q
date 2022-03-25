@@ -31,8 +31,10 @@ class Task:
         self.retries = retries
         self.retry_delay = retry_delay
 
-    def enqueue(self, *args_, **kwargs_):
+    def enqueue(self, *args_, due=None, **kwargs_):
         from .models import TaskExec
+
+        due_datetime = due or timezone.now()
 
         if self.unique:
             existing_tasks = TaskExec.objects.filter(
@@ -42,20 +44,28 @@ class Task:
             queued_task = existing_tasks.filter(state=TaskExec.States.QUEUED).first()
             if queued_task is not None:
                 return False
-            # If there's a sleeping task, we set it's due date to now
+            # If there's already a same task that's sleeping
             sleeping_task = existing_tasks.filter(
                 state=TaskExec.States.SLEEPING
             ).first()
             if sleeping_task is not None:
-                sleeping_task.due = timezone.now()
-                sleeping_task.state = TaskExec.States.QUEUED
-                sleeping_task.save()
+                if due is None:
+                    # If the queuing is not delayed, we enqueue it now
+                    sleeping_task.due = due_datetime
+                    sleeping_task.state = TaskExec.States.QUEUED
+                    sleeping_task.save()
+                elif sleeping_task.due > due_datetime:
+                    # If it's delayed to less than the current due date of the task
+                    sleeping_task.due = min(sleeping_task.due, due_datetime)
+                    sleeping_task.save()
                 return False
 
         return TaskExec.objects.create(
             task_name=self.name,
             args=args_,
             kwargs=kwargs_,
+            state=TaskExec.States.SLEEPING if due else TaskExec.States.QUEUED,
+            due=due_datetime,
             queue=self.queue,
             priority=self.priority,
             retries=self.retries,

@@ -2,6 +2,7 @@ import os
 
 DEBUG = True
 USE_TZ = True
+TIME_ZONE = "UTC"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "_ijq6*+k4!wxrkh8=ps%-qz(f-0m-q)f5qemnc5cck7usceg5j"

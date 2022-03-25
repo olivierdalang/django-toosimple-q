@@ -142,6 +142,16 @@ def short_task():
 # manage.py worker
 ```
 
+You can enqueue tasks with a specific due date.
+```python
+@register_task()
+def my_task(name):
+    return f"Hello {name} !"
+
+# Enqueue tasks
+my_task.queue("John", due=timezone.now() + timedelta(hours=1))
+```
+
 ### Schedules
 
 By default, `last_tick` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
@@ -297,6 +307,7 @@ $ pre-commit install
   - replaced last_check by run_on_creation argument in schedule_task decorator (`@schedule_task(..., last_chec=None)` -> `@schedule_task(..., run_on_creation=True)`)
   - included a demo project showcasing some custom tasks setups
   - updated compatibility to Django 3.2 and 4.0, and Python 3.8-3.10
+  - added `due` argument to `task.queue()`
 
 - master
   - made `last_check` and `last_run` optional in the admin

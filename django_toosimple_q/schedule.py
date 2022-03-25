@@ -80,7 +80,9 @@ class Schedule:
             if self.datetime_kwarg:
                 dt_kwarg = {self.datetime_kwarg: next_due}
 
-            t = tasks_registry[self.name].enqueue(*self.args, **self.kwargs, **dt_kwarg)
+            t = tasks_registry[self.name].enqueue(
+                *self.args, due=next_due, **self.kwargs, **dt_kwarg
+            )
             if t:
                 execution.last_run = t
                 execution.save()

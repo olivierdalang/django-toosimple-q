@@ -407,6 +407,56 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertEqual(TaskExec.objects.last().retry_delay, 40)
 
     @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
+    def test_task_due_date(self, frozen_datetime):
+        """Checking unique task retries with delay"""
+
+        @register_task(name="my_task", unique=True)
+        def my_task(x):
+            return x * 2
+
+        def getDues():
+            return [
+                (t.state, f"{t.due:%Y-%m-%d %H:%M}")
+                for t in TaskExec.objects.order_by("due")
+            ]
+
+        # Normal queue is due right now
+        my_task.queue(1)
+        self.assertEqual(
+            getDues(),
+            [
+                (TaskExec.States.QUEUED.value, "2020-01-01 00:00"),
+            ],
+        )
+        management.call_command("worker", "--until_done")
+        self.assertEqual(
+            getDues(),
+            [
+                (TaskExec.States.SUCCEEDED.value, "2020-01-01 00:00"),
+            ],
+        )
+
+        # Delayed queue is due in the future
+        my_task.queue(1, due=timezone.now() + datetime.timedelta(hours=3))
+        self.assertEqual(
+            getDues(),
+            [
+                (TaskExec.States.SUCCEEDED.value, "2020-01-01 00:00"),
+                (TaskExec.States.SLEEPING.value, "2020-01-01 03:00"),
+            ],
+        )
+
+        # Delayed closer reduces the due date
+        my_task.queue(1, due=timezone.now() + datetime.timedelta(hours=2))
+        self.assertEqual(
+            getDues(),
+            [
+                (TaskExec.States.SUCCEEDED.value, "2020-01-01 00:00"),
+                (TaskExec.States.SLEEPING.value, "2020-01-01 02:00"),
+            ],
+        )
+
+    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
     def test_schedule(self, frozen_datetime):
         """Testing schedules"""
 
