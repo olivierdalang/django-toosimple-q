@@ -191,13 +191,13 @@ def my_task(time):
     return f"Good {time} John !"
 ```
 
-You may get the schedule's cron datetime provided as a keyword argument to the task using the `datetime_kwarg` argument :
-
+If you need the cron datetime inside the task, use the `due` field of the Task execution
+instance, as described above :
 ```python
-@schedule_task(cron="30 8 * * *", datetime_kwarg="scheduled_on")
-@register_task()
-def my_task(scheduled_on):
-    return f"This was scheduled for {scheduled_on.isoformat()}."
+@schedule_task(cron="30 8 * * *")
+@register_task(taskexec_kwarg="taskexec")
+def my_task(taskexec):
+    return f"This was scheduled for {taskexec.due.isoformat()}."
 ```
 
 
@@ -317,7 +317,8 @@ $ pre-commit install
   - included a demo project showcasing some custom tasks setups
   - updated compatibility to Django 3.2 and 4.0, and Python 3.8-3.10
   - added `due` argument to `task.queue()`
-  - added `taskexec_kwarg` argument to @register_task, allowing to access the task execution instance from within the task
+  - added `taskexec_kwarg` argument to `@register_task`, allowing to access the task execution instance from within the task
+  - removed `datetime_kwarg` from `@register_schedule` (use `taskexec_kwarg` and the instance's `due` field instead)
 
 - master
   - made `last_check` and `last_run` optional in the admin

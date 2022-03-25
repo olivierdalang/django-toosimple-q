@@ -6,10 +6,10 @@ from django.utils import timezone
 from django_toosimple_q.decorators import register_task, schedule_task
 
 
-@schedule_task(cron="* * * * *", datetime_kwarg="scheduled_time")
-@register_task(name="say_hi")
-def say_hi(scheduled_time):
-    return f"Had to say hi {scheduled_time} (it is now {timezone.now()})"
+@schedule_task(cron="* * * * *")
+@register_task(name="say_hi", taskexec_kwarg="taskexec")
+def say_hi(taskexec):
+    return f"Had to say hi {taskexec.due} (it is now {timezone.now()})"
 
 
 @schedule_task(cron="* * * * *")
