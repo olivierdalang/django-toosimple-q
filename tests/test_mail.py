@@ -1,5 +1,5 @@
 from django.core import mail, management
-from django.core.mail import send_mail
+from django.core.mail import send_mail, send_mass_mail
 from django.test import TestCase
 from django.test.utils import override_settings
 
@@ -98,6 +98,32 @@ class TestMail(QueueAssertionMixin, TestCase):
         self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 1)
+
+    @override_settings(
+        EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",
+        TOOSIMPLEQ_EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    )
+    def test_queue_mass_mail(self):
+
+        self.assertQueue(0)
+
+        send_mass_mail(
+            [
+                ("Subject A", "Message.", "from@example.com", ["to@example.com"]),
+                ("Subject B", "Message.", "from@example.com", ["to@example.com"]),
+                ("Subject C", "Message.", "from@example.com", ["to@example.com"]),
+            ]
+        )
+
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
+        self.assertQueue(1)
+        self.assertEquals(len(mail.outbox), 0)
+
+        management.call_command("worker", "--until_done")
+
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(1)
+        self.assertEquals(len(mail.outbox), 3)
 
     @override_settings(
         EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",

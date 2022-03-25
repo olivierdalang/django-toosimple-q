@@ -8,5 +8,4 @@ class QueueBackend(BaseEmailBackend):
         super().__init__(kwargs)
 
     def send_messages(self, email_messages):
-        for email_message in email_messages:
-            send_email.queue(email_message)
+        send_email.queue(email_messages)

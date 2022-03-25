@@ -5,7 +5,7 @@ from django_toosimple_q.decorators import register_task
 
 
 @register_task(unique=True, retries=10, retry_delay=3)
-def send_email(email):
+def send_email(emails):
 
     backend = getattr(
         settings,
@@ -15,5 +15,5 @@ def send_email(email):
 
     conn = get_connection(backend=backend)
     conn.open()
-    conn.send_messages([email])
+    conn.send_messages(emails)
     conn.close()
