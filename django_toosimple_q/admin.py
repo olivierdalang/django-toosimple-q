@@ -1,26 +1,35 @@
 from django.contrib import admin
-from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.contrib.messages.constants import SUCCESS
 from django.template.defaultfilters import truncatechars
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils import timezone
+from django.utils.html import escape, format_html
+from django.utils.safestring import mark_safe
 
 from .models import ScheduleExec, TaskExec
 from .task import tasks_registry
 
 
+class ReadOnlyAdmin(admin.ModelAdmin):
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
+
 @admin.register(TaskExec)
-class TaskExecAdmin(admin.ModelAdmin):
+class TaskExecAdmin(ReadOnlyAdmin):
     list_display = [
+        "icon",
         "task_name",
-        "args_",
-        "kwargs_",
+        "arguments_",
         "queue",
         "priority",
+        "due_",
         "created_",
         "started_",
         "finished_",
-        "icon",
         "replaced_by_",
         "result_",
     ]
@@ -28,25 +37,29 @@ class TaskExecAdmin(admin.ModelAdmin):
     list_filter = ["task_name", "queue", "state"]
     actions = ["action_requeue"]
     ordering = ["-created"]
-    readonly_fields = ["args", "kwargs", "result"]
+    readonly_fields = ["result"]
 
-    def args_(self, obj):
-        return truncatechars(str(obj.args), 32)
-
-    def kwargs_(self, obj):
-        return truncatechars(str(obj.kwargs), 32)
+    def arguments_(self, obj):
+        return format_html(
+            "{}<br/>{}",
+            truncatechars(str(obj.args), 32),
+            truncatechars(str(obj.kwargs), 32),
+        )
 
     def result_(self, obj):
         return truncatechars(str(obj.result), 32)
 
+    def due_(self, obj):
+        return short_naturaltime(obj.due)
+
     def created_(self, obj):
-        return naturaltime(obj.created)
+        return short_naturaltime(obj.created)
 
     def started_(self, obj):
-        return naturaltime(obj.started)
+        return short_naturaltime(obj.started)
 
     def finished_(self, obj):
-        return naturaltime(obj.finished)
+        return short_naturaltime(obj.finished)
 
     def replaced_by_(self, obj):
         if obj.replaced_by:
@@ -63,7 +76,7 @@ class TaskExecAdmin(admin.ModelAdmin):
 
 
 @admin.register(ScheduleExec)
-class ScheduleExecAdmin(admin.ModelAdmin):
+class ScheduleExecAdmin(ReadOnlyAdmin):
     list_display = [
         "name",
         "last_check",
@@ -78,3 +91,31 @@ class ScheduleExecAdmin(admin.ModelAdmin):
             edit_link = reverse(f"admin:{app}_{model}_change", args=(obj.last_run_id,))
             return format_html('<a href="{}">{}</a>', edit_link, obj.last_run.icon)
         return "-"
+
+
+def short_naturaltime(datetime):
+
+    if datetime is None:
+        return None
+
+    delta = timezone.now() - datetime
+    disps = [
+        (60, "s"),
+        (60 * 60, "m"),
+        (60 * 60 * 24, "h"),
+        (60 * 60 * 24 * 7, "D"),
+        (60 * 60 * 24 * 30, "W"),
+        (60 * 60 * 24 * 365, "M"),
+        (float("inf"), "Y"),
+    ]
+
+    last_v = 1
+    for threshold, abbr in disps:
+        if abs(delta.seconds) < threshold:
+            text = f"{delta.seconds // last_v}{abbr}"
+            break
+        last_v = threshold
+
+    shorttime = f"in&nbsp;{text}" if delta.seconds < 0 else f"{text}&nbsp;ago"
+
+    return mark_safe(f'<span title="{escape(datetime)}">{shorttime}</span>')

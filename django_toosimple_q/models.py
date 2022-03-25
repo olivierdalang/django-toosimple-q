@@ -9,6 +9,9 @@ class TaskExec(models.Model):
     This is a model, whose instanced are typically created using `mycallable.queue()` or from schedules.
     """
 
+    class Meta:
+        verbose_name = "Task Execution"
+
     QUEUED = "QUEUED"
     SLEEPING = "SLEEPING"
     PROCESSING = "PROCESSING"
@@ -78,6 +81,8 @@ class TaskExec(models.Model):
 
 
 class ScheduleExec(models.Model):
+    class Meta:
+        verbose_name = "Schedule Execution"
 
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
