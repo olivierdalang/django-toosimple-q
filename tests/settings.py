@@ -6,8 +6,7 @@ USE_TZ = True
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "_ijq6*+k4!wxrkh8=ps%-qz(f-0m-q)f5qemnc5cck7usceg5j"
 
-backend = os.getenv("TOOSIMPLEQ_TEST_DB", "sqlite")
-if backend == "postgres":
+if os.getenv("TOOSIMPLEQ_TEST_DB", "sqlite") == "postgres":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -18,11 +17,11 @@ if backend == "postgres":
             "PASSWORD": "postgres",
         }
     }
-elif backend == "sqlite":
+else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
+            "NAME": "db.sqlite3",
         }
     }
 
@@ -38,6 +37,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_toosimple_q.contrib.mail",
     "django_toosimple_q",
+    # Demo application
+    "tests.demoapp",
 ]
 
 SITE_ID = 1

@@ -243,6 +243,18 @@ $ export TOOSIMPLEQ_TEST_DB=postgres # on Windows: `$Env:TOOSIMPLEQ_TEST_DB = "p
 
 Tests are run automatically on github.
 
+#### Manual testing
+
+You can manually test the provided test project :
+```shell
+$ python manage.py migrate
+$ python manage.py createsuperuser
+$ python manage.py worker
+$ python manage.py runserver
+```
+
+Then open http://127.0.0.1:8000/admin in your browser
+
 
 ### Contribute
 
@@ -278,6 +290,7 @@ $ pre-commit install
   - task name must now be provided as a kwarg (`@register_task("mytask")` -> `@register_task(name="mytask")`)
   - schedules are no longer stored in the database, only their execution infomation is (which means that `--recreate-only` and `--no-recreate` arguments are removed)
   - replaced last_check by run_on_creation argument in schedule_task decorator (`@schedule_task(..., last_chec=None)` -> `@schedule_task(..., run_on_creation=True)`)
+  - included a demo project showcasing some custom tasks setups
 
 - master
   - made `last_check` and `last_run` optional in the admin
