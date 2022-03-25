@@ -4,7 +4,6 @@ from django.core import management
 from django.test import TestCase
 from django.utils import timezone
 from freezegun import freeze_time
-from pytz import UTC
 
 from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import ScheduleExec, TaskExec
@@ -391,7 +390,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
         @schedule_task(
-            cron="0 12 * * *", last_check=None, datetime_kwarg="scheduled_on"
+            cron="0 12 * * *", run_on_creation=True, datetime_kwarg="scheduled_on"
         )
         @register_task(name="autostart")
         def b(scheduled_on):
@@ -404,7 +403,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
 
         @schedule_task(
             cron="0 12 * * *",
-            last_check=None,
+            run_on_creation=True,
             catch_up=True,
             datetime_kwarg="scheduled_on",
         )
@@ -412,39 +411,18 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         def d(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        @schedule_task(
-            cron="0 12 * * *",
-            last_check=datetime.datetime(2019, 12, 31, tzinfo=UTC),
-            datetime_kwarg="scheduled_on",
-        )
-        @register_task(name="lastcheck")
-        def e(scheduled_on):
-            return f"{scheduled_on:%Y-%m-%d %H:%M}"
-
-        @schedule_task(
-            cron="0 12 * * *",
-            last_check=datetime.datetime(2019, 12, 30, tzinfo=UTC),
-            datetime_kwarg="scheduled_on",
-            catch_up=True,
-        )
-        @register_task(name="lastcheckcatchup")
-        def f(scheduled_on):
-            return f"{scheduled_on:%Y-%m-%d %H:%M}"
-
-        self.assertEquals(len(schedules), 6)
+        self.assertEquals(len(schedules), 4)
         self.assertEquals(ScheduleExec.objects.count(), 0)
         self.assertQueue(0)
 
         management.call_command("worker", "--until_done")
 
-        # first run, only tasks with last_check=None should run as no time passed
+        # first run, only tasks with run_on_creation=True should run as no time passed
         self.assertQueue(0, function="normal")
         self.assertQueue(1, function="autostart")
         self.assertQueue(0, function="catchup")
         self.assertQueue(1, function="autostartcatchup")
-        self.assertQueue(1, function="lastcheck")
-        self.assertQueue(2, function="lastcheckcatchup")
-        self.assertQueue(5)
+        self.assertQueue(2)
 
         management.call_command("worker", "--until_done")
 
@@ -453,9 +431,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertQueue(1, function="autostart")
         self.assertQueue(0, function="catchup")
         self.assertQueue(1, function="autostartcatchup")
-        self.assertQueue(1, function="lastcheck")
-        self.assertQueue(2, function="lastcheckcatchup")
-        self.assertQueue(5)
+        self.assertQueue(2)
 
         frozen_datetime.move_to("2020-01-02")
         management.call_command("worker", "--until_done")
@@ -465,9 +441,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertQueue(2, function="autostart")
         self.assertQueue(1, function="catchup")
         self.assertQueue(2, function="autostartcatchup")
-        self.assertQueue(2, function="lastcheck")
-        self.assertQueue(3, function="lastcheckcatchup")
-        self.assertQueue(11)
+        self.assertQueue(6)
 
         frozen_datetime.move_to("2020-01-05")
         management.call_command("worker", "--until_done")
@@ -477,12 +451,10 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertQueue(3, function="autostart")
         self.assertQueue(4, function="catchup")
         self.assertQueue(5, function="autostartcatchup")
-        self.assertQueue(3, function="lastcheck")
-        self.assertQueue(6, function="lastcheckcatchup")
-        self.assertQueue(23)
+        self.assertQueue(14)
 
         # make sure all tasks succeeded
-        self.assertQueue(23, state=TaskExec.SUCCEEDED)
+        self.assertQueue(14, state=TaskExec.SUCCEEDED)
 
         # make sure we got correct dates
         def results_list(function_name):
@@ -519,25 +491,6 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertEqual(
             results_list("autostartcatchup"),
             [
-                "2019-12-31 12:00",
-                "2020-01-01 12:00",
-                "2020-01-02 12:00",
-                "2020-01-03 12:00",
-                "2020-01-04 12:00",
-            ],
-        )
-        self.assertEqual(
-            results_list("lastcheck"),
-            [
-                "2019-12-31 12:00",
-                "2020-01-01 12:00",
-                "2020-01-04 12:00",
-            ],
-        )
-        self.assertEqual(
-            results_list("lastcheckcatchup"),
-            [
-                "2019-12-30 12:00",
                 "2019-12-31 12:00",
                 "2020-01-01 12:00",
                 "2020-01-02 12:00",

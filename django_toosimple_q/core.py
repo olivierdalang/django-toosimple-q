@@ -71,7 +71,7 @@ class Schedule:
         kwargs: Dict = {},
         datetime_kwarg: str = None,
         catch_up: bool = False,
-        last_check=timezone.now,  # TODO: replace by run_on_creation or default_last_check
+        run_on_creation: bool = False,
     ):
         self.name = name
         self.task = task
@@ -80,7 +80,7 @@ class Schedule:
         self.kwargs = kwargs
         self.datetime_kwarg = datetime_kwarg
         self.catch_up = catch_up
-        self.last_check = last_check
+        self.run_on_creation = run_on_creation
 
     def execute(self):
         """Execute the schedule, which creates a new task if a new run is required
@@ -93,7 +93,8 @@ class Schedule:
 
         # retrieve the last execution
         execution, created = ScheduleExec.objects.get_or_create(
-            name=self.name, defaults={"last_check": self.last_check}
+            name=self.name,
+            defaults={"last_check": None if self.run_on_creation else timezone.now()},
         )
 
         last_check = execution.last_check

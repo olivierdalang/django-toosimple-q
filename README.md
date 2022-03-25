@@ -139,10 +139,10 @@ def short_task():
 
 ### Schedules
 
-By default, `last_check` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `last_check=None`.
+By default, `last_check` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
 
 ```python
-@schedule_task(cron="30 8 * * *", last_check=None)
+@schedule_task(cron="30 8 * * *", run_on_creation=True)
 @register_task()
 def my_task(name):
     return f"Good morning {name} !"
@@ -281,6 +281,7 @@ TODO : items below are not yet aligned with the code !
   - renamed models (`Schedule` -> `ScheduleExec` and `Task` -> `TaskExec`)
   - task name must now be provided as a kwarg (`@register_task("mytask")` -> `@register_task(name="mytask")`)
   - schedules are no longer stored in the database, only their execution infomation is (which means that `--recreate-only` and `--no-recreate` arguments are removed)
+  - replaced last_check by run_on_creation argument in schedule_task decorator (`@schedule_task(..., last_chec=None)` -> `@schedule_task(..., run_on_creation=True)`)
 
 - master
   - made `last_check` and `last_run` optional in the admin
