@@ -320,7 +320,7 @@ $ pre-commit install
   - added `taskexec_kwarg` argument to `@register_task`, allowing to access the task execution instance from within the task
   - removed `datetime_kwarg` from `@register_schedule` (use `taskexec_kwarg` and the instance's `due` field instead)
 
-- master
+- 2022-03-24 : v0.4.0
   - made `last_check` and `last_run` optional in the admin
   - defined `id` fields
 
