@@ -483,40 +483,33 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertQueue(14, state=TaskExec.States.SUCCEEDED)
 
         # make sure we got correct dates
-        def results_list(task_name):
-            return list(
-                TaskExec.objects.order_by("created")
-                .filter(task_name=task_name)
-                .values_list("result", flat=True)
-            )
-
-        self.assertEqual(
-            results_list("normal"),
-            [
+        self.assertResults(
+            task_name="normal",
+            expected=[
                 "2020-01-01 12:00",
                 "2020-01-04 12:00",
             ],
         )
-        self.assertEqual(
-            results_list("autostart"),
-            [
+        self.assertResults(
+            task_name="autostart",
+            expected=[
                 "2019-12-31 12:00",
                 "2020-01-01 12:00",
                 "2020-01-04 12:00",
             ],
         )
-        self.assertEqual(
-            results_list("catchup"),
-            [
+        self.assertResults(
+            task_name="catchup",
+            expected=[
                 "2020-01-01 12:00",
                 "2020-01-02 12:00",
                 "2020-01-03 12:00",
                 "2020-01-04 12:00",
             ],
         )
-        self.assertEqual(
-            results_list("autostartcatchup"),
-            [
+        self.assertResults(
+            task_name="autostartcatchup",
+            expected=[
                 "2019-12-31 12:00",
                 "2020-01-01 12:00",
                 "2020-01-02 12:00",

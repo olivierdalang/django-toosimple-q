@@ -32,6 +32,14 @@ class QueueAssertionMixin:
                 f"Expected {expected_count} tasks, got {actual_count} tasks.\n{debug}"
             )
 
+    def assertResults(self, expected=[], task_name=None):
+        tasks_execs = TaskExec.objects.order_by("created")
+        if task_name:
+            tasks_execs = tasks_execs.filter(task_name=task_name)
+        results = list(tasks_execs.values_list("result", flat=True))
+
+        self.assertEqual(results, expected)
+
     def assertTask(self, task, expected_state):
         actual_state = TaskExec.objects.get(pk=task.pk).state
         if actual_state != expected_state:
