@@ -1,7 +1,8 @@
 from django.db.models import Count
 
 from django_toosimple_q.models import TaskExec
-from django_toosimple_q.registry import schedules, tasks
+from django_toosimple_q.schedule import schedules_registry
+from django_toosimple_q.task import tasks_registry
 
 
 class QueueAssertionMixin:
@@ -47,13 +48,13 @@ class EmptyRegistryMixin:
     """
 
     def setUp(self):
-        self.__schedules_before = schedules.copy()
-        self.__tasks_before = tasks.copy()
-        schedules.clear()
-        tasks.clear()
+        self.__schedules_before = schedules_registry.copy()
+        self.__tasks_before = tasks_registry.copy()
+        schedules_registry.clear()
+        tasks_registry.clear()
 
     def tearDown(self):
-        schedules.clear()
-        tasks.clear()
-        schedules.update(self.__schedules_before)
-        tasks.update(self.__tasks_before)
+        schedules_registry.clear()
+        tasks_registry.clear()
+        schedules_registry.update(self.__schedules_before)
+        tasks_registry.update(self.__tasks_before)

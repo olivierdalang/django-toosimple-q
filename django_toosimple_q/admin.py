@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from .models import ScheduleExec, TaskExec
-from .registry import tasks
+from .task import tasks_registry
 
 
 @admin.register(TaskExec)
@@ -54,7 +54,7 @@ class TaskExecAdmin(admin.ModelAdmin):
 
     def action_requeue(self, request, queryset):
         for task in queryset:
-            tasks[task.task_name].queue(*task.args, **task.kwargs)
+            tasks_registry[task.task_name].queue(*task.args, **task.kwargs)
         self.message_user(
             request, f"{queryset.count()} tasks successfully requeued...", level=SUCCESS
         )

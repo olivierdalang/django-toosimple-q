@@ -6,9 +6,10 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.utils.translation import ugettext as _
 
-from ...logging import logger
+from ...logging import logger, show_registry
 from ...models import TaskExec
-from ...registry import dump_registry, schedules, tasks
+from ...schedule import schedules_registry
+from ...task import tasks_registry
 
 
 class Command(BaseCommand):
@@ -60,7 +61,7 @@ class Command(BaseCommand):
         signal.signal(signal.SIGTERM, signal.default_int_handler)
 
         logger.info("Starting worker")
-        dump_registry()
+        show_registry()
 
         self.queues = options["queue"]
         self.excluded_queues = options["exclude_queue"]
@@ -97,7 +98,7 @@ class Command(BaseCommand):
         did_something = False
 
         logger.debug(f"Checking schedules...")
-        for schedule in schedules.values():
+        for schedule in schedules_registry.values():
             did_something |= schedule.execute()
 
         logger.debug(f"Waking up tasks...")
@@ -114,8 +115,8 @@ class Command(BaseCommand):
         task_exec = tasks_execs.order_by("-priority", "created").first()
         if task_exec:
             # We ensure the task is in the registry
-            if task_exec.task_name in tasks:
-                task = tasks[task_exec.task_name]
+            if task_exec.task_name in tasks_registry:
+                task = tasks_registry[task_exec.task_name]
                 did_something |= task.execute(task_exec)
             else:
                 # If not, we set it as invalid

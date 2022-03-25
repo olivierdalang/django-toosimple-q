@@ -2,8 +2,6 @@ from django.db import models
 from django.utils import timezone
 from picklefield.fields import PickledObjectField
 
-from .registry import schedules
-
 
 class TaskExec(models.Model):
     """TaskExecution represent a specific planned or past call of a task, including inputs (arguments) and outputs.
@@ -89,7 +87,9 @@ class ScheduleExec(models.Model):
     )
 
     def __str__(self):
-        if self.name in schedules:
-            return f"Schedule {self.name} [{schedules[self.name].cron}]"
+        from .schedule import schedules_registry
+
+        if self.name in schedules_registry:
+            return f"Schedule {self.name} [{schedules_registry[self.name].cron}]"
         else:
             return f"Schedule {self.name} [invalid]"

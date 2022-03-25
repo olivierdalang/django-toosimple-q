@@ -7,7 +7,7 @@ from freezegun import freeze_time
 
 from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import ScheduleExec, TaskExec
-from django_toosimple_q.registry import schedules
+from django_toosimple_q.schedule import schedules_registry
 
 from .utils import EmptyRegistryMixin, QueueAssertionMixin
 
@@ -415,7 +415,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         def d(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        self.assertEquals(len(schedules), 4)
+        self.assertEquals(len(schedules_registry), 4)
         self.assertEquals(ScheduleExec.objects.count(), 0)
         self.assertQueue(0)
 

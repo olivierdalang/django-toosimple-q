@@ -1,7 +1,7 @@
 from django.core.exceptions import ImproperlyConfigured
 
-from .core import Schedule, Task
-from .registry import schedules, tasks
+from .schedule import Schedule, schedules_registry
+from .task import Task, tasks_registry
 
 
 def register_task(**kwargs):
@@ -23,7 +23,7 @@ def register_task(**kwargs):
         func.queue = task.enqueue
 
         # Add to the registry
-        tasks[task.name] = task
+        tasks_registry[task.name] = task
 
         # Decorator returns the function itself
         return func
@@ -50,7 +50,7 @@ def schedule_task(**kwargs):
         schedule = Schedule(**kwargs)
 
         # Add to the registry
-        schedules[kwargs["name"]] = schedule
+        schedules_registry[kwargs["name"]] = schedule
 
         # Decorator returns the function itself
         return func
