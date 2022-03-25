@@ -1,14 +1,8 @@
-import contextlib
-import io
-import traceback
-from datetime import timedelta
-
 from django.db import models
 from django.utils import timezone
 from picklefield.fields import PickledObjectField
 
-from .logging import logger
-from .registry import schedules, tasks
+from .registry import schedules
 
 
 class TaskExec(models.Model):
@@ -83,89 +77,6 @@ class TaskExec(models.Model):
             return "⭕️"
         else:
             return "❓"
-
-    def execute(self):
-        """Execute the task.
-
-        A check is done to make sure the task is still queued.
-
-        Returns True if at the task was executed, whether it failed or succeeded (so you can loop for testing).
-        """
-
-        self.refresh_from_db()
-        if self.state != TaskExec.QUEUED and not (
-            self.state == TaskExec.SLEEPING and timezone.now() >= self.due
-        ):
-            # this task was executed from another worker in the mean time
-            return True
-
-        if self.task_name not in tasks.keys():
-            # this task is not in the registry
-            self.state = TaskExec.INVALID
-            self.save()
-            logger.warning(f"{self} not found in registry [{list(tasks.keys())}]")
-            return True
-
-        task = tasks[self.task_name]
-
-        logger.debug(f"Executing : {self}")
-
-        self.started = timezone.now()
-        self.state = TaskExec.PROCESSING
-        self.save()
-
-        try:
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-
-            try:
-                with contextlib.redirect_stderr(stderr):
-                    with contextlib.redirect_stdout(stdout):
-                        self.result = task.callable(*self.args, **self.kwargs)
-                self.state = TaskExec.SUCCEEDED
-            except Exception:
-                logger.warning(f"{self} failed !")
-                self.state = TaskExec.FAILED
-                self.result = traceback.format_exc()
-                if self.retries != 0:
-                    self.create_replacement(is_retry=True)
-            finally:
-                self.finished = timezone.now()
-                self.stdout = stdout.getvalue()
-                self.stderr = stderr.getvalue()
-                self.save()
-
-        except (KeyboardInterrupt, SystemExit) as e:
-            logger.critical(f"{self} got interrupted !")
-            self.state = TaskExec.INTERRUPTED
-            self.create_replacement(is_retry=False)
-            self.save()
-            raise e
-
-        return True
-
-    def create_replacement(self, is_retry):
-        if is_retry:
-            retries = self.retries - 1 if self.retries > 0 else -1
-            delay = self.retry_delay * 2
-        else:
-            retries = self.retries
-            delay = self.retry_delay
-
-        logger.info(f"Creating a replacement task for {self}")
-        replaced_by = TaskExec.objects.create(
-            task_name=self.task_name,
-            args=self.args,
-            kwargs=self.kwargs,
-            priority=self.priority,
-            created=self.created,
-            retries=retries,
-            retry_delay=delay,
-            state=TaskExec.SLEEPING,
-            due=timezone.now() + timedelta(seconds=self.retry_delay),
-        )
-        self.replaced_by = replaced_by
-        self.save()
 
 
 class ScheduleExec(models.Model):

@@ -263,10 +263,6 @@ $ pre-commit install
 
 **Schedule**: a configuration for repeated execution of *tasks*. These are typically configured in `tasks.py`.
 
-TODO : items below are not yet aligned with the code !
-
-
-
 **ScheduleExecution**: the last execution of a *schedule* (e.g. keeps track of the last time a schedule actually lead to generate a task execution).  This is a model, whose instances are created by the worker.
 
 **Registry**: a dictionary keeping all registered schedules and tasks.

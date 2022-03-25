@@ -1,4 +1,7 @@
-from datetime import datetime
+import contextlib
+import io
+import traceback
+from datetime import datetime, timedelta
 from typing import Callable, Dict, List
 
 from croniter import croniter, croniter_range
@@ -7,6 +10,7 @@ from django.utils import timezone
 from django_toosimple_q.models import ScheduleExec
 
 from .logging import logger
+from .models import TaskExec
 from .registry import tasks
 
 
@@ -57,6 +61,82 @@ class Task:
             retries=self.retries,
             retry_delay=self.retry_delay,
         )
+
+    def execute(self, task_exec):
+        """Execute the task.
+
+        Returns True if at the task was executed, whether it failed or succeeded (so you can loop for testing).
+        """
+
+        assert self.name == task_exec.task_name
+
+        task_exec.refresh_from_db()
+        if task_exec.state != TaskExec.QUEUED and not (
+            task_exec.state == TaskExec.SLEEPING and timezone.now() >= self.due
+        ):
+            # this task was executed from another worker in the mean time
+            return True
+
+        logger.debug(f"Executing : {self}")
+
+        task_exec.started = timezone.now()
+        task_exec.state = TaskExec.PROCESSING
+        task_exec.save()
+
+        try:
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            try:
+                with contextlib.redirect_stderr(stderr):
+                    with contextlib.redirect_stdout(stdout):
+                        task_exec.result = self.callable(
+                            *task_exec.args, **task_exec.kwargs
+                        )
+                task_exec.state = TaskExec.SUCCEEDED
+            except Exception:
+                logger.warning(f"{task_exec} failed !")
+                task_exec.state = TaskExec.FAILED
+                task_exec.result = traceback.format_exc()
+                if task_exec.retries != 0:
+                    self.create_replacement(task_exec, is_retry=True)
+            finally:
+                task_exec.finished = timezone.now()
+                task_exec.stdout = stdout.getvalue()
+                task_exec.stderr = stderr.getvalue()
+                task_exec.save()
+
+        except (KeyboardInterrupt, SystemExit) as e:
+            logger.critical(f"{task_exec} got interrupted !")
+            task_exec.state = TaskExec.INTERRUPTED
+            self.create_replacement(task_exec, is_retry=False)
+            task_exec.save()
+            raise e
+
+        return True
+
+    def create_replacement(self, task_exec, is_retry):
+        if is_retry:
+            retries = task_exec.retries - 1 if task_exec.retries > 0 else -1
+            delay = task_exec.retry_delay * 2
+        else:
+            retries = task_exec.retries
+            delay = task_exec.retry_delay
+
+        logger.info(f"Creating a replacement task for {task_exec}")
+        replaced_by = TaskExec.objects.create(
+            task_name=task_exec.task_name,
+            args=task_exec.args,
+            kwargs=task_exec.kwargs,
+            priority=task_exec.priority,
+            created=task_exec.created,
+            retries=retries,
+            retry_delay=delay,
+            state=TaskExec.SLEEPING,
+            due=timezone.now() + timedelta(seconds=task_exec.retry_delay),
+        )
+        task_exec.replaced_by = replaced_by
+        task_exec.save()
 
 
 class Schedule:

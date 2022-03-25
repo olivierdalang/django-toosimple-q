@@ -8,7 +8,7 @@ from django.utils.translation import ugettext as _
 
 from ...logging import logger
 from ...models import TaskExec
-from ...registry import dump_registry, schedules
+from ...registry import dump_registry, schedules, tasks
 
 
 class Command(BaseCommand):
@@ -106,13 +106,22 @@ class Command(BaseCommand):
         ).update(state=TaskExec.QUEUED)
 
         logger.debug(f"Checking tasks...")
-        tasks = TaskExec.objects.filter(state=TaskExec.QUEUED)
+        tasks_execs = TaskExec.objects.filter(state=TaskExec.QUEUED)
         if self.queues:
-            tasks = tasks.filter(queue__in=self.queues)
+            tasks_execs = tasks_execs.filter(queue__in=self.queues)
         if self.excluded_queues:
-            tasks = tasks.exclude(queue__in=self.excluded_queues)
-        task = tasks.order_by("-priority", "created").first()
-        if task:
-            did_something |= task.execute()
+            tasks_execs = tasks_execs.exclude(queue__in=self.excluded_queues)
+        task_exec = tasks_execs.order_by("-priority", "created").first()
+        if task_exec:
+            # We ensure the task is in the registry
+            if task_exec.task_name in tasks:
+                task = tasks[task_exec.task_name]
+                did_something |= task.execute(task_exec)
+            else:
+                # If not, we set it as invalid
+                task_exec.state = TaskExec.INVALID
+                task_exec.save()
+                logger.warning(f"Found invalid task execution: {task_exec}")
+                did_something = True
 
         return did_something

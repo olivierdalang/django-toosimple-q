@@ -23,7 +23,8 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
 
         t = a.queue(2)
         self.assertEqual(t.state, TaskExec.QUEUED)
-        t.execute()
+        management.call_command("worker", "--once")
+        t.refresh_from_db()
         self.assertEqual(t.state, TaskExec.SUCCEEDED)
         self.assertEqual(t.result, 4)
 
@@ -32,29 +33,32 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         def b(x):
             return x / 0
 
-        t = TaskExec.objects.create(task_name="b", args=[2])
+        t = b.queue(2)
         self.assertEqual(t.state, TaskExec.QUEUED)
-        t.execute()
+        management.call_command("worker", "--once")
+        t.refresh_from_db()
         self.assertEqual(t.state, TaskExec.FAILED)
+        # self.assertEqual(t.result, None)  # TODO: a failed task should have no result
 
     def test_task_registration(self):
         """Checking task registration"""
 
         # We cannot run arbitrary functions
+        self.assertQueue(0)
         t = TaskExec.objects.create(task_name="print", args=["test"])
-        self.assertEqual(t.state, TaskExec.QUEUED)
-        t.execute()
-        self.assertEqual(t.state, TaskExec.INVALID)
+        self.assertQueue(1, state=TaskExec.QUEUED)
+        management.call_command("worker", "--once")
+        self.assertQueue(1, state=TaskExec.INVALID)
 
         # We can run registered functions
         @register_task(name="a")
         def a(x):
             pass
 
-        t = TaskExec.objects.create(task_name="a", args=["test"])
-        self.assertEqual(t.state, TaskExec.QUEUED)
-        t.execute()
-        self.assertEqual(t.state, TaskExec.SUCCEEDED)
+        TaskExec.objects.create(task_name="a", args=["test"])
+        self.assertQueue(1, state=TaskExec.QUEUED)
+        management.call_command("worker", "--once")
+        self.assertQueue(1, state=TaskExec.SUCCEEDED)
 
     def test_task_queuing(self):
         """Checking task queuing"""
