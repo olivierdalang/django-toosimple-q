@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List
 
 from croniter import croniter, croniter_range
@@ -35,11 +35,14 @@ class Schedule:
         self.catch_up = catch_up
         self.run_on_creation = run_on_creation
 
-    def execute(self):
+    def execute(self, tick_duration):
         """Execute the schedule, which creates a new task if a new run is required
         since last check.
 
         The task may be added several times if catch_up is True.
+
+        Schedules that have been checked less than tick_duration (in seconds) ago
+        are ignored.
 
         Returns True if at least one task was queued (so you can loop for testing).
         """
@@ -61,6 +64,9 @@ class Schedule:
         if last_check is None:
             # If the schedule was never checked, we run it now
             next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
+        elif timezone.now() - last_check < timedelta(seconds=tick_duration):
+            # If the last check was less than a tick ago (usually only happens when testing with until_done)
+            next_dues = []
         else:
             # Otherwise, we find all execution times since last check
             next_dues = list(croniter_range(last_check, timezone.now(), self.cron))

@@ -65,6 +65,7 @@ class Command(BaseCommand):
 
         self.queues = options["queue"]
         self.excluded_queues = options["exclude_queue"]
+        self.tick_duration = options["tick"]
 
         if self.queues:
             logger.info(f"Starting queues {self.queues}...")
@@ -88,7 +89,7 @@ class Command(BaseCommand):
             if not did_something:
                 # wait for next tick
                 dt = (timezone.now() - last_run).total_seconds()
-                time.sleep(max(0, options["tick"] - dt))
+                time.sleep(max(0, self.tick_duration - dt))
 
             last_run = timezone.now()
 
@@ -99,7 +100,7 @@ class Command(BaseCommand):
 
         logger.debug(f"Checking schedules...")
         for schedule in schedules_registry.values():
-            did_something |= schedule.execute()
+            did_something |= schedule.execute(self.tick_duration)
 
         logger.debug(f"Waking up tasks...")
         TaskExec.objects.filter(state=TaskExec.SLEEPING).filter(
