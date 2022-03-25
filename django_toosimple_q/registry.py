@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING, Dict
+
 from .logging import logger
 
-tasks = {}
-schedules = {}
+if TYPE_CHECKING:
+    from .core import Schedule, Task
+
+tasks: Dict[str, "Task"] = {}
+schedules: Dict[str, "Schedule"] = {}
 
 
 def dump_registry():

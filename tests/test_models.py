@@ -8,6 +8,7 @@ from pytz import UTC
 
 from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import ScheduleExec, TaskExec
+from django_toosimple_q.registry import schedules
 
 from .utils import EmptyRegistryMixin, QueueAssertionMixin
 
@@ -17,18 +18,18 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         """Checking correctness of task states"""
 
         # Succeeding task
-        @register_task("a")
+        @register_task(name="a")
         def a(x):
             return x * 2
 
-        t = TaskExec.objects.create(function="a", args=[2])
+        t = a.queue(2)
         self.assertEqual(t.state, TaskExec.QUEUED)
         t.execute()
         self.assertEqual(t.state, TaskExec.SUCCEEDED)
         self.assertEqual(t.result, 4)
 
         # Failing task
-        @register_task("b")
+        @register_task(name="b")
         def b(x):
             return x / 0
 
@@ -47,7 +48,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertEqual(t.state, TaskExec.INVALID)
 
         # We can run registered functions
-        @register_task("a")
+        @register_task(name="a")
         def a(x):
             pass
 
@@ -59,7 +60,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
     def test_task_queuing(self):
         """Checking task queuing"""
 
-        @register_task("a")
+        @register_task(name="a")
         def a(x):
             return x * 2
 
@@ -109,15 +110,15 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
     def test_task_queuing_with_priorities(self):
         """Checking task queuing with priorities"""
 
-        @register_task("p2", priority=2)
+        @register_task(name="p2", priority=2)
         def p2(x):
             return x * 2
 
-        @register_task("p1a", priority=1)
+        @register_task(name="p1a", priority=1)
         def p1a(x):
             return x * 2
 
-        @register_task("p1b", priority=1)
+        @register_task(name="p1b", priority=1)
         def p1b(x):
             return x * 2
 
@@ -208,11 +209,11 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
     def test_task_queuing_with_unique(self):
         """Checking task queuing with unique"""
 
-        @register_task("normal")
+        @register_task(name="normal")
         def normal(x):
             return x * 2
 
-        @register_task("unique", unique=True)
+        @register_task(name="unique", unique=True)
         def unique(x):
             return x * 2
 
@@ -251,7 +252,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
     def test_task_retries(self):
         """Checking task retries"""
 
-        @register_task("div_zero", retries=10)
+        @register_task(name="div_zero", retries=10)
         def div_zero(x):
             return x / 0
 
@@ -273,7 +274,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
 
         initial_datetime = datetime.datetime.now()
 
-        @register_task("div_zero", retries=10, retry_delay=10)
+        @register_task(name="div_zero", retries=10, retry_delay=10)
         def div_zero(x):
             return x / 0
 
@@ -331,7 +332,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
     def test_task_retries_delay_unique(self, frozen_datetime):
         """Checking unique task retries with delay"""
 
-        @register_task("div_zero", retries=10, retry_delay=10, unique=True)
+        @register_task(name="div_zero", retries=10, retry_delay=10, unique=True)
         def div_zero(x):
             return x / 0
 
@@ -385,19 +386,19 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         """Testing schedules"""
 
         @schedule_task(cron="0 12 * * *", datetime_kwarg="scheduled_on")
-        @register_task("normal")
+        @register_task(name="normal")
         def a(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
         @schedule_task(
             cron="0 12 * * *", last_check=None, datetime_kwarg="scheduled_on"
         )
-        @register_task("autostart")
+        @register_task(name="autostart")
         def b(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
         @schedule_task(cron="0 12 * * *", catch_up=True, datetime_kwarg="scheduled_on")
-        @register_task("catchup")
+        @register_task(name="catchup")
         def c(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
@@ -407,7 +408,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
             catch_up=True,
             datetime_kwarg="scheduled_on",
         )
-        @register_task("autostartcatchup")
+        @register_task(name="autostartcatchup")
         def d(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
@@ -416,7 +417,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
             last_check=datetime.datetime(2019, 12, 31, tzinfo=UTC),
             datetime_kwarg="scheduled_on",
         )
-        @register_task("lastcheck")
+        @register_task(name="lastcheck")
         def e(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
@@ -426,19 +427,15 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
             datetime_kwarg="scheduled_on",
             catch_up=True,
         )
-        @register_task("lastcheckcatchup")
+        @register_task(name="lastcheckcatchup")
         def f(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
+        self.assertEquals(len(schedules), 6)
         self.assertEquals(ScheduleExec.objects.count(), 0)
         self.assertQueue(0)
 
-        management.call_command("worker", "--recreate_only")
-
-        self.assertEquals(ScheduleExec.objects.count(), 6)
-        self.assertQueue(0)
-
-        management.call_command("worker", "--no_recreate", "--until_done")
+        management.call_command("worker", "--until_done")
 
         # first run, only tasks with last_check=None should run as no time passed
         self.assertQueue(0, function="normal")
@@ -449,7 +446,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertQueue(2, function="lastcheckcatchup")
         self.assertQueue(5)
 
-        management.call_command("worker", "--no_recreate", "--until_done")
+        management.call_command("worker", "--until_done")
 
         # second run, no time passed so no change
         self.assertQueue(0, function="normal")
@@ -461,7 +458,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertQueue(5)
 
         frozen_datetime.move_to("2020-01-02")
-        management.call_command("worker", "--no_recreate", "--until_done")
+        management.call_command("worker", "--until_done")
 
         # one day passed, all tasks should have run once
         self.assertQueue(1, function="normal")
@@ -473,7 +470,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.assertQueue(11)
 
         frozen_datetime.move_to("2020-01-05")
-        management.call_command("worker", "--no_recreate", "--until_done")
+        management.call_command("worker", "--until_done")
 
         # three day passed, catch_up should have run thrice and other once
         self.assertQueue(2, function="normal")
@@ -552,35 +549,35 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
     def test_named_queues(self):
         """Checking named queues"""
 
-        @register_task("a")  # queue="default"
+        @register_task(name="a")  # queue="default"
         def a(x):
             return x * 2
 
-        @register_task("b", queue="queue_b")
+        @register_task(name="b", queue="queue_b")
         def b(x):
             return x * 2
 
-        @register_task("c", queue="queue_c")
+        @register_task(name="c", queue="queue_c")
         def c(x):
             return x * 2
 
-        @register_task("d", queue="queue_d")
+        @register_task(name="d", queue="queue_d")
         def d(x):
             return x * 2
 
-        @register_task("e", queue="queue_e")
+        @register_task(name="e", queue="queue_e")
         def e(x):
             return x * 2
 
-        @register_task("f", queue="queue_f")
+        @register_task(name="f", queue="queue_f")
         def f(x):
             return x * 2
 
-        @register_task("g", queue="queue_g")
+        @register_task(name="g", queue="queue_g")
         def g(x):
             return x * 2
 
-        @register_task("h", queue="queue_h")
+        @register_task(name="h", queue="queue_h")
         def h(x):
             return x * 2
 

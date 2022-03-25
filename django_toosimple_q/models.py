@@ -1,15 +1,14 @@
 import contextlib
 import io
 import traceback
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-from croniter import croniter, croniter_range
 from django.db import models
 from django.utils import timezone
 from picklefield.fields import PickledObjectField
 
 from .logging import logger
-from .registry import tasks
+from .registry import schedules, tasks
 
 
 class TaskExec(models.Model):
@@ -37,7 +36,7 @@ class TaskExec(models.Model):
     )
 
     id = models.BigAutoField(primary_key=True)
-    function = models.CharField(max_length=1024)
+    function = models.CharField(max_length=1024)  # TODO: rename function->name
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
     queue = models.CharField(max_length=32, default="default")
@@ -107,6 +106,8 @@ class TaskExec(models.Model):
             logger.warning(f"{self} not found in registry [{list(tasks.keys())}]")
             return True
 
+        task = tasks[self.function]
+
         logger.debug(f"Executing : {self}")
 
         self.started = timezone.now()
@@ -117,8 +118,6 @@ class TaskExec(models.Model):
             stdout = io.StringIO()
             stderr = io.StringIO()
 
-            callable = tasks[self.function]
-
             # TODO : if callable is a string, load the callable using this pseudocode:
             # if is_string(callable):
             #     mod, call = self.function.rsplit(".", 1)
@@ -127,7 +126,7 @@ class TaskExec(models.Model):
             try:
                 with contextlib.redirect_stderr(stderr):
                     with contextlib.redirect_stdout(stdout):
-                        self.result = callable(*self.args, **self.kwargs)
+                        self.result = task.callable(*self.args, **self.kwargs)
                 self.state = TaskExec.SUCCEEDED
             except Exception:
                 logger.warning(f"{self} failed !")
@@ -178,64 +177,13 @@ class ScheduleExec(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
-    function = models.CharField(max_length=1024)
-    args = PickledObjectField(blank=True, default=list)
-    kwargs = PickledObjectField(blank=True, default=dict)
-    datetime_kwarg = models.CharField(max_length=1024, blank=True, null=True)
-
     last_check = models.DateTimeField(null=True, blank=True, default=timezone.now)
-    catch_up = models.BooleanField(default=False)
     last_run = models.ForeignKey(
         TaskExec, null=True, blank=True, on_delete=models.SET_NULL
     )
 
-    cron = models.CharField(max_length=1024)
-
-    def execute(self):
-        """Execute the schedule.
-
-        A check is done to make sure the schedule wasn't checked by another worker in the mean time.
-
-        The task may be added several times if catch_up is True.
-
-        Returns True if at least one task was queued (so you can loop for testing).
-        """
-
-        last_check = self.last_check
-        self.refresh_from_db()
-        if last_check != self.last_check:
-            # this schedule was executed from another worker in the mean time
-            return True
-
-        # we update last_check already to reduce race condition chance
-        self.last_check = timezone.now()
-        self.save()
-
-        did_something = False
-
-        if last_check is None:
-            next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
-        else:
-            next_dues = list(croniter_range(last_check, timezone.now(), self.cron))
-            if not self.catch_up and len(next_dues) > 1:
-                next_dues = [next_dues[-1]]
-
-        for next_due in next_dues:
-
-            logger.debug(f"Due : {self}")
-
-            dt_kwarg = {}
-            if self.datetime_kwarg:
-                dt_kwarg = {self.datetime_kwarg: next_due}
-
-            t = tasks[self.function].queue(*self.args, **self.kwargs, **dt_kwarg)
-            if t:
-                self.last_run = t
-                self.save()
-
-            did_something = True
-
-        return did_something
-
     def __str__(self):
-        return f"Schedule {self.function} [{self.cron}]"
+        if self.name in schedules:
+            return f"Schedule {self.name} [{schedules[self.name].cron}]"
+        else:
+            return f"Schedule {self.name} [invalid]"

@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext as _
 
 from ...logging import logger
-from ...models import ScheduleExec, TaskExec
+from ...models import TaskExec
 from ...registry import dump_registry, schedules
 
 
@@ -41,18 +41,6 @@ class Command(BaseCommand):
             help="run until no tasks are available then exit (useful for debugging)",
         )
 
-        schedules = parser.add_mutually_exclusive_group()
-        schedules.add_argument(
-            "--no_recreate",
-            action="store_true",
-            help="do not (re)populate the schedule table (useful for debugging)",
-        )
-        schedules.add_argument(
-            "--recreate_only",
-            action="store_true",
-            help="populates the schedule table then exit (useful for debugging)",
-        )
-
         parser.add_argument(
             "--tick",
             default=10.0,
@@ -74,13 +62,6 @@ class Command(BaseCommand):
 
         logger.info("Starting worker")
         dump_registry()
-
-        if not options["no_recreate"]:
-            self.create_schedules()
-
-        if options["recreate_only"]:
-            logger.info("Exiting because --recreate_only was passed")
-            return
 
         self.queues = options["queue"]
         self.excluded_queues = options["exclude_queue"]
@@ -111,22 +92,13 @@ class Command(BaseCommand):
 
             last_run = datetime.datetime.now()
 
-    def create_schedules(self):
-        ids = []
-        for schedule_name, defaults in schedules.items():
-            schedule, created = ScheduleExec.objects.update_or_create(
-                name=schedule_name, defaults=defaults
-            )
-            ids.append(schedule.id)
-        ScheduleExec.objects.exclude(id__in=ids).delete()
-
     def tick(self):
         """Returns True if something happened (so you can loop for testing)"""
 
         did_something = False
 
         logger.debug(f"Checking schedules...")
-        for schedule in ScheduleExec.objects.all():
+        for schedule in schedules.values():
             did_something |= schedule.execute()
 
         logger.debug(f"Waking up tasks...")

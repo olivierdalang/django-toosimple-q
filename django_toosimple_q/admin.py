@@ -66,16 +66,11 @@ class TaskExecAdmin(admin.ModelAdmin):
 class ScheduleExecAdmin(admin.ModelAdmin):
     list_display = [
         "name",
-        "function",
-        "args",
-        "kwargs",
-        "cron",
         "last_check",
         "last_run_",
     ]
-    list_display_links = ["name", "function"]
+    list_display_links = ["name"]
     ordering = ["last_check"]
-    readonly_fields = ["args", "kwargs"]
 
     def last_run_(self, obj):
         if obj.last_run:

@@ -4,6 +4,7 @@ psycopg2>=2.8,<2.9
 
 # devenv
 pre-commit
+mypy
 
 # app deps
 -r requirements.txt

@@ -16,7 +16,7 @@ class TestAdmin(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         self.client.force_login(user)
 
         @schedule_task(cron="0 12 * * *", datetime_kwarg="scheduled_on")
-        @register_task("a")
+        @register_task(name="a")
         def a(x):
             return x * 2
 

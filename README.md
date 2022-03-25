@@ -80,7 +80,7 @@ The package autoloads `tasks.py` from all installed apps. While this is the reco
 
 You can optionnaly give a custom name to your tasks. This is required when your task is defined in a local scope.
 ```python
-@register_task("my_favourite_task")
+@register_task(name="my_favourite_task")
 def my_task(name):
     return f"Good morning {name} !"
 ```
@@ -185,7 +185,6 @@ Besides standard django management commands arguments, the management command su
 usage: manage.py worker [--queue QUEUE | --exclude_queue EXCLUDE_QUEUE]
                         [--tick TICK]
                         [--once | --until_done]
-                        [--no_recreate | --recreate_only]
 
 optional arguments:
   --queue QUEUE         which queue to run (can be used several times, all
@@ -197,10 +196,6 @@ optional arguments:
                         for new tasks/schedules
   --once                run once then exit (useful for debugging)
   --until_done          run until no tasks are available then exit (useful for
-                        debugging)
-  --no_recreate         do not (re)populate the schedule table (useful for
-                        debugging)
-  --recreate_only       populates the schedule table then exit (useful for
                         debugging)
 ```
 
@@ -262,13 +257,15 @@ $ pre-commit install
 
 ### Terms
 
+**Task**: a callable with a known name in the *registry*. These are typically registered in `tasks.py`.
+
 **TaskExecution**: a specific planned or past call of a *task*, including inputs (arguments) and outputs. This is a model, whose instanced are typically created using `mycallable.queue()` or from schedules.
+
+**Schedule**: a configuration for repeated execution of *tasks*. These are typically configured in `tasks.py`.
 
 TODO : items below are not yet aligned with the code !
 
-**Task**: a callable with a known name in the *registry*. These are typically registered in `tasks.py`.
 
-**Schedule**: a configuration for repeated execution of *tasks*. These are typically configured in `tasks.py`.
 
 **ScheduleExecution**: the last execution of a *schedule* (e.g. keeps track of the last time a schedule actually lead to generate a task execution).  This is a model, whose instances are created by the worker.
 
@@ -282,6 +279,8 @@ TODO : items below are not yet aligned with the code !
 - dev **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - renamed `@schedule` -> `@schedule_task`
   - renamed models (`Schedule` -> `ScheduleExec` and `Task` -> `TaskExec`)
+  - task name must now be provided as a kwarg (`@register_task("mytask")` -> `@register_task(name="mytask")`)
+  - schedules are no longer stored in the database, only their execution infomation is (which means that `--recreate-only` and `--no-recreate` arguments are removed)
 
 - master
   - made `last_check` and `last_run` optional in the admin
