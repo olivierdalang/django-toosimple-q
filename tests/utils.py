@@ -56,7 +56,7 @@ class TooSimpleQTestCase(TestCase):
             )
 
     def assertResults(self, expected=[], task_name=None):
-        tasks_execs = TaskExec.objects.order_by("created")
+        tasks_execs = TaskExec.objects.order_by("created", "result")
         if task_name:
             tasks_execs = tasks_execs.filter(task_name=task_name)
         results = list(tasks_execs.values_list("result", flat=True))
