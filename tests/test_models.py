@@ -27,6 +27,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         t.refresh_from_db()
         self.assertEqual(t.state, TaskExec.SUCCEEDED)
         self.assertEqual(t.result, 4)
+        self.assertEqual(t.error, None)
 
         # Failing task
         @register_task(name="b")
@@ -38,7 +39,8 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
         management.call_command("worker", "--once")
         t.refresh_from_db()
         self.assertEqual(t.state, TaskExec.FAILED)
-        # self.assertEqual(t.result, None)  # TODO: a failed task should have no result
+        self.assertEqual(t.result, None)
+        self.assertNotEqual(t.error, None)
 
     def test_task_registration(self):
         """Checking task registration"""

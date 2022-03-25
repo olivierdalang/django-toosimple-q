@@ -50,6 +50,7 @@ class TaskExec(models.Model):
     finished = models.DateTimeField(blank=True, null=True)
     state = models.CharField(max_length=32, choices=state_choices, default=QUEUED)
     result = PickledObjectField(blank=True, null=True)
+    error = models.TextField(blank=True, null=True)
     replaced_by = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL
     )
@@ -94,6 +95,7 @@ class ScheduleExec(models.Model):
     def __str__(self):
         from .schedule import schedules_registry
 
+        # TODO: also use states like done for tasks
         if self.name in schedules_registry:
             return f"Schedule {self.name} [{schedules_registry[self.name].cron}]"
         else:

@@ -95,7 +95,7 @@ class Task:
             except Exception:
                 logger.warning(f"{task_exec} failed !")
                 task_exec.state = TaskExec.FAILED
-                task_exec.result = traceback.format_exc()
+                task_exec.error = traceback.format_exc()
                 if task_exec.retries != 0:
                     self.create_replacement(task_exec, is_retry=True)
             finally:
