@@ -1,4 +1,3 @@
-import datetime
 import logging
 import signal
 import time
@@ -73,7 +72,7 @@ class Command(BaseCommand):
         else:
             logger.info(f"Starting all queues...")
 
-        last_run = datetime.datetime.now()
+        last_run = timezone.now()
         while True:
             did_something = self.tick()
 
@@ -87,10 +86,10 @@ class Command(BaseCommand):
 
             if not did_something:
                 # wait for next tick
-                dt = (datetime.datetime.now() - last_run).total_seconds()
+                dt = (timezone.now() - last_run).total_seconds()
                 time.sleep(max(0, options["tick"] - dt))
 
-            last_run = datetime.datetime.now()
+            last_run = timezone.now()
 
     def tick(self):
         """Returns True if something happened (so you can loop for testing)"""

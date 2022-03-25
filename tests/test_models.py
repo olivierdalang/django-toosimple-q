@@ -271,7 +271,7 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
     def test_task_retries_delay(self, frozen_datetime):
         """Checking task retries with delay"""
 
-        initial_datetime = datetime.datetime.now()
+        initial_datetime = timezone.now()
 
         @register_task(name="div_zero", retries=10, retry_delay=10)
         def div_zero(x):
