@@ -1,16 +1,20 @@
+import importlib
+
 from django.core import mail, management
 from django.core.mail import send_mail, send_mass_mail
-from django.test import TestCase
 from django.test.utils import override_settings
 
+import django_toosimple_q.contrib.mail.tasks
 from django_toosimple_q.models import TaskExec
 
-from .utils import QueueAssertionMixin
+from .utils import TooSimpleQTestCase
 
 
-class TestMail(QueueAssertionMixin, TestCase):
+class TestMail(TooSimpleQTestCase):
     def setUp(self):
-        mail.outbox.clear()
+        super().setUp()
+        # Reload the tasks modules to repopulate the registries (emulates auto-discovery)
+        importlib.reload(django_toosimple_q.contrib.mail.tasks)
 
     @override_settings(
         EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",

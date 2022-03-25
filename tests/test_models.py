@@ -1,7 +1,6 @@
 import datetime
 
 from django.core import management
-from django.test import TestCase
 from django.utils import timezone
 from freezegun import freeze_time
 
@@ -9,10 +8,10 @@ from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import ScheduleExec, TaskExec
 from django_toosimple_q.schedule import schedules_registry
 
-from .utils import EmptyRegistryMixin, QueueAssertionMixin
+from .utils import TooSimpleQTestCase
 
 
-class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
+class TestCore(TooSimpleQTestCase):
     def test_task_states(self):
         """Checking correctness of task states"""
 

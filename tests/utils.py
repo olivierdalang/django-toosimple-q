@@ -1,14 +1,37 @@
+from django.contrib.auth.models import User
+from django.core import mail
 from django.db.models import Count
+from django.test import Client, TestCase
 
 from django_toosimple_q.models import TaskExec
 from django_toosimple_q.schedule import schedules_registry
 from django_toosimple_q.task import tasks_registry
 
 
-class QueueAssertionMixin:
+class TooSimpleQTestCase(TestCase):
     """
-    Adds assertQueue and assertTask helpers
+    Base TestCase for TooSimpleQ.
+
+    - Clears the schedules and task registries (reverting the autodiscovery)
+    - Creates a superuser
+    - Clears the mailbox
+    - Adds assertQueue and assertTask helpers
+
+    Use this if you want to keep autoloaded task (from contrib.mail) from polluting the tests.
     """
+
+    def setUp(self):
+        # Clean the registry
+        schedules_registry.clear()
+        tasks_registry.clear()
+
+        # Create a superuser
+        user = User.objects.create_superuser("admin", "test@example.com", "pass")
+        self.client = Client()
+        self.client.force_login(user)
+
+        # Clear the mailbox
+        mail.outbox.clear()
 
     def assertQueue(self, expected_count, task_name=None, state=None, replaced=None):
         tasks = TaskExec.objects.all()
@@ -46,23 +69,3 @@ class QueueAssertionMixin:
             raise AssertionError(
                 f"Expected {expected_state}, got {actual_state} [{task}]"
             )
-
-
-class EmptyRegistryMixin:
-    """
-    Empties the schedules and task registries before running the test case (and restores it afterwards).
-
-    Use this if you want to keep autoloaded task (from contrib.mail) from polluting the tests.
-    """
-
-    def setUp(self):
-        self.__schedules_before = schedules_registry.copy()
-        self.__tasks_before = tasks_registry.copy()
-        schedules_registry.clear()
-        tasks_registry.clear()
-
-    def tearDown(self):
-        schedules_registry.clear()
-        tasks_registry.clear()
-        schedules_registry.update(self.__schedules_before)
-        tasks_registry.update(self.__tasks_before)

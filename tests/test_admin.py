@@ -1,20 +1,12 @@
-from django.contrib.auth.models import User
 from django.core import management
-from django.test import Client, TestCase
 
 from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import ScheduleExec, TaskExec
 
-from .utils import EmptyRegistryMixin, QueueAssertionMixin
+from .utils import TooSimpleQTestCase
 
 
-class TestAdmin(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
-    def setUp(self):
-        super().setUp()
-        user = User.objects.create_superuser("admin", "test@example.com", "pass")
-        self.client = Client()
-        self.client.force_login(user)
-
+class TestAdmin(TooSimpleQTestCase):
     def test_task_admin(self):
         """Check if task admin pages work"""
 
