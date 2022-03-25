@@ -137,4 +137,9 @@ class Migration(migrations.Migration):
             name="last_check",
             field=models.DateTimeField(default=django.utils.timezone.now),
         ),
+        migrations.RenameField(
+            model_name="scheduleexec",
+            old_name="last_check",
+            new_name="last_tick",
+        ),
     ]

@@ -50,10 +50,10 @@ class Schedule:
         # retrieve the last execution
         execution, created = ScheduleExec.objects.get_or_create(name=self.name)
 
-        last_check = execution.last_check
+        last_tick = execution.last_tick
 
-        # we update last_check already to reduce race condition chance
-        execution.last_check = timezone.now()
+        # we update last_tick already to reduce race condition chance
+        execution.last_tick = timezone.now()
         execution.status = ScheduleExec.States.ACTIVE
         execution.save()
 
@@ -62,12 +62,12 @@ class Schedule:
         if created and self.run_on_creation:
             # If the schedule is new, we run it now
             next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
-        elif timezone.now() - last_check < timedelta(seconds=tick_duration):
+        elif timezone.now() - last_tick < timedelta(seconds=tick_duration):
             # If the last check was less than a tick ago (usually only happens when testing with until_done)
             next_dues = []
         else:
             # Otherwise, we find all execution times since last check
-            next_dues = list(croniter_range(last_check, timezone.now(), self.cron))
+            next_dues = list(croniter_range(last_tick, timezone.now(), self.cron))
             # We keep only the last one if catchup wasn't specified
             if not self.catch_up:
                 next_dues = next_dues[-1:]

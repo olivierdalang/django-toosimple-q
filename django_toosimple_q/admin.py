@@ -85,12 +85,12 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
         "icon",
         "name",
         "cron",
-        "last_check_",
+        "last_tick_",
         "last_run_due_",
         "last_run_task_",
     ]
     list_display_links = ["name"]
-    ordering = ["last_check"]
+    ordering = ["last_tick"]
 
     @admin.display(ordering="last_run__due")
     def last_run_due_(self, obj):
@@ -105,9 +105,9 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
             return format_html('<a href="{}">{}</a>', edit_link, obj.last_run)
         return "-"
 
-    @admin.display(ordering="last_check")
-    def last_check_(self, obj):
-        return short_naturaltime(obj.last_check)
+    @admin.display(ordering="last_tick")
+    def last_tick_(self, obj):
+        return short_naturaltime(obj.last_tick)
 
 
 def short_naturaltime(datetime):

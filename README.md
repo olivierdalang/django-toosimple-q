@@ -144,7 +144,7 @@ def short_task():
 
 ### Schedules
 
-By default, `last_check` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
+By default, `last_tick` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
 
 ```python
 @schedule_task(cron="30 8 * * *", run_on_creation=True)
