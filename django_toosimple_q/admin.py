@@ -67,7 +67,7 @@ class TaskExecAdmin(ReadOnlyAdmin):
 
     def action_requeue(self, request, queryset):
         for task in queryset:
-            tasks_registry[task.task_name].queue(*task.args, **task.kwargs)
+            tasks_registry[task.task_name].enqueue(*task.args, **task.kwargs)
         self.message_user(
             request, f"{queryset.count()} tasks successfully requeued...", level=SUCCESS
         )

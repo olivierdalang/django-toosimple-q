@@ -3,7 +3,7 @@ from django.core import management
 from django.test import Client, TestCase
 
 from django_toosimple_q.decorators import register_task, schedule_task
-from django_toosimple_q.models import ScheduleExec
+from django_toosimple_q.models import ScheduleExec, TaskExec
 
 from .utils import EmptyRegistryMixin, QueueAssertionMixin
 
@@ -50,3 +50,35 @@ class TestAdmin(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
             f"/admin/toosimpleq/scheduleexec/{scheduleexec.pk}/change/"
         )
         self.assertEqual(response.status_code, 200)
+
+    def test_task_admin_requeue_action(self):
+        """Check if the requeue action works"""
+
+        @register_task(name="a")
+        def a():
+            return 2
+
+        task_exec = a.queue()
+
+        self.assertQueue(0, state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.QUEUED)
+
+        management.call_command("worker", "--until_done")
+
+        self.assertQueue(1, state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, state=TaskExec.QUEUED)
+
+        data = {
+            "action": "action_requeue",
+            "_selected_action": task_exec.pk,
+        }
+        response = self.client.post("/admin/toosimpleq/taskexec/", data, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        self.assertQueue(1, state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.QUEUED)
+
+        management.call_command("worker", "--until_done")
+
+        self.assertQueue(2, state=TaskExec.SUCCEEDED)
+        self.assertQueue(0, state=TaskExec.QUEUED)
