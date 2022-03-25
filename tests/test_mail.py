@@ -27,13 +27,13 @@ class TestMail(QueueAssertionMixin, TestCase):
             ["to@example.com"],
         )
 
-        self.assertQueue(1, state=TaskExec.QUEUED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(1, state=TaskExec.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 1)
 
