@@ -1,9 +1,11 @@
+import datetime
 import random
 import sys
 
 from django.utils import timezone
 
 from django_toosimple_q.decorators import register_task, schedule_task
+from django_toosimple_q.models import TaskExec
 
 
 @schedule_task(cron="* * * * *")
@@ -33,3 +35,14 @@ def logging():
 @register_task(name="task_instance", taskexec_kwarg="taskexec")
 def task_instance(taskexec):
     return f"{taskexec} was supposed to run at {taskexec.due} and actully started at {taskexec.started}"
+
+
+@schedule_task(cron="*/5 * * * *", run_on_creation=True)
+@register_task(name="cleanup")
+def cleanup():
+    old_tasks_execs = TaskExec.objects.filter(
+        created__lte=timezone.now() - datetime.timedelta(minutes=10)
+    )
+    deletes = old_tasks_execs.delete()
+    print(f"Deleted {deletes}")
+    return True
