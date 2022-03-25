@@ -22,6 +22,11 @@ Limitations :
 - probably not extremely reliable because of race conditions
 - no multithreading yet (but running multiple workers should work)
 
+Compatibility:
+
+- Django 3.2 and 4.0
+- Python 3.8, 3.9, 3.10
+
 ## Installation
 
 Install the library :
@@ -291,6 +296,7 @@ $ pre-commit install
   - schedules are no longer stored in the database, only their execution infomation is (which means that `--recreate-only` and `--no-recreate` arguments are removed)
   - replaced last_check by run_on_creation argument in schedule_task decorator (`@schedule_task(..., last_chec=None)` -> `@schedule_task(..., run_on_creation=True)`)
   - included a demo project showcasing some custom tasks setups
+  - updated compatibility to Django 3.2 and 4.0, and Python 3.8-3.10
 
 - master
   - made `last_check` and `last_run` optional in the admin
