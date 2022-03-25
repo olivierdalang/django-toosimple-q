@@ -48,10 +48,7 @@ class Schedule:
         """
 
         # retrieve the last execution
-        execution, created = ScheduleExec.objects.get_or_create(
-            name=self.name,
-            defaults={"last_check": None if self.run_on_creation else timezone.now()},
-        )
+        execution, created = ScheduleExec.objects.get_or_create(name=self.name)
 
         last_check = execution.last_check
 
@@ -62,8 +59,8 @@ class Schedule:
 
         did_something = False
 
-        if last_check is None:
-            # If the schedule was never checked, we run it now
+        if created and self.run_on_creation:
+            # If the schedule is new, we run it now
             next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
         elif timezone.now() - last_check < timedelta(seconds=tick_duration):
             # If the last check was less than a tick ago (usually only happens when testing with until_done)

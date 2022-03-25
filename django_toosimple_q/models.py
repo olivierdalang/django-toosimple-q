@@ -85,7 +85,7 @@ class ScheduleExec(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
-    last_check = models.DateTimeField(null=True, blank=True, default=timezone.now)
+    last_check = models.DateTimeField(default=timezone.now)
     last_run = models.ForeignKey(
         TaskExec, null=True, blank=True, on_delete=models.SET_NULL
     )

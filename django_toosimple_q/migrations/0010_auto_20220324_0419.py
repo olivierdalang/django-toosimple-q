@@ -132,4 +132,9 @@ class Migration(migrations.Migration):
                 to="toosimpleq.taskexec",
             ),
         ),
+        migrations.AlterField(
+            model_name="scheduleexec",
+            name="last_check",
+            field=models.DateTimeField(default=django.utils.timezone.now),
+        ),
     ]
