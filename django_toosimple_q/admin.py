@@ -49,15 +49,19 @@ class TaskExecAdmin(ReadOnlyAdmin):
     def result_(self, obj):
         return truncatechars(str(obj.result), 32)
 
+    @admin.display(ordering="due")
     def due_(self, obj):
         return short_naturaltime(obj.due)
 
+    @admin.display(ordering="created")
     def created_(self, obj):
         return short_naturaltime(obj.created)
 
+    @admin.display(ordering="started")
     def started_(self, obj):
         return short_naturaltime(obj.started)
 
+    @admin.display(ordering="finished")
     def finished_(self, obj):
         return short_naturaltime(obj.finished)
 
@@ -77,16 +81,33 @@ class TaskExecAdmin(ReadOnlyAdmin):
 
 @admin.register(ScheduleExec)
 class ScheduleExecAdmin(ReadOnlyAdmin):
-    list_display = ["icon", "name", "last_check", "last_run_", "cron"]
+    list_display = [
+        "icon",
+        "name",
+        "cron",
+        "last_check_",
+        "last_run_due_",
+        "last_run_task_",
+    ]
     list_display_links = ["name"]
     ordering = ["last_check"]
 
-    def last_run_(self, obj):
+    @admin.display(ordering="last_run__due")
+    def last_run_due_(self, obj):
+        if obj.last_run:
+            return short_naturaltime(obj.last_run.due)
+        return "-"
+
+    def last_run_task_(self, obj):
         if obj.last_run:
             app, model = obj.last_run._meta.app_label, obj.last_run._meta.model_name
             edit_link = reverse(f"admin:{app}_{model}_change", args=(obj.last_run_id,))
-            return format_html('<a href="{}">{}</a>', edit_link, obj.last_run.icon)
+            return format_html('<a href="{}">{}</a>', edit_link, obj.last_run)
         return "-"
+
+    @admin.display(ordering="last_check")
+    def last_check_(self, obj):
+        return short_naturaltime(obj.last_check)
 
 
 def short_naturaltime(datetime):
