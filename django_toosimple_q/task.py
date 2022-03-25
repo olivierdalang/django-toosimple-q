@@ -22,6 +22,7 @@ class Task:
         unique: bool = False,
         retries: int = 0,
         retry_delay: int = 0,
+        taskexec_kwarg: str = None,
     ):
         self.name = name
         self.callable = callable
@@ -30,6 +31,7 @@ class Task:
         self.unique = unique
         self.retries = retries
         self.retry_delay = retry_delay
+        self.taskexec_kwarg = taskexec_kwarg
 
     def enqueue(self, *args_, due=None, **kwargs_):
         from .models import TaskExec
@@ -93,6 +95,10 @@ class Task:
         task_exec.state = TaskExec.States.PROCESSING
         task_exec.save()
 
+        taskexec_instance_kwarg = (
+            {self.taskexec_kwarg: task_exec} if self.taskexec_kwarg else {}
+        )
+
         try:
             stdout = io.StringIO()
             stderr = io.StringIO()
@@ -101,7 +107,9 @@ class Task:
                 with contextlib.redirect_stderr(stderr):
                     with contextlib.redirect_stdout(stdout):
                         task_exec.result = self.callable(
-                            *task_exec.args, **task_exec.kwargs
+                            *task_exec.args,
+                            **taskexec_instance_kwarg,
+                            **task_exec.kwargs,
                         )
                 task_exec.state = TaskExec.States.SUCCEEDED
             except Exception:

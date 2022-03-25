@@ -152,6 +152,15 @@ def my_task(name):
 my_task.queue("John", due=timezone.now() + timedelta(hours=1))
 ```
 
+
+You can get the task execution instance to access task exectution details. This can be
+used with schedules as they set the due date properly.
+```python
+@register_task(taskexec_kwarg="taskexec")
+def my_task(taskexec):
+    return f"{taskexec} was supposed to run at {taskexec.due} and actully started at {taskexec.started}"
+```
+
 ### Schedules
 
 By default, `last_tick` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
@@ -308,6 +317,7 @@ $ pre-commit install
   - included a demo project showcasing some custom tasks setups
   - updated compatibility to Django 3.2 and 4.0, and Python 3.8-3.10
   - added `due` argument to `task.queue()`
+  - added `taskexec_kwarg` argument to @register_task, allowing to access the task execution instance from within the task
 
 - master
   - made `last_check` and `last_run` optional in the admin

@@ -27,3 +27,9 @@ def logging():
     sys.stdout.write("This should go to standard output")
     sys.stderr.write("This should go to error output")
     return "This is the result"
+
+
+@schedule_task(cron="* * * * *")
+@register_task(name="task_instance", taskexec_kwarg="taskexec")
+def task_instance(taskexec):
+    return f"{taskexec} was supposed to run at {taskexec.due} and actully started at {taskexec.started}"
