@@ -505,6 +505,36 @@ class TestCore(QueueAssertionMixin, EmptyRegistryMixin, TestCase):
             ],
         )
 
+    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
+    def test_invalid_schedule(self, frozen_datetime):
+        """Testing invalid schedules"""
+
+        @schedule_task(cron="0 * * * *")
+        @register_task(name="valid")
+        def a():
+            return f"Valid task"
+
+        @schedule_task(cron="0 * * * *")
+        @register_task(name="invalid")
+        def a():
+            return f"Invalid task"
+
+        all_schedules = ScheduleExec.objects.all()
+
+        management.call_command("worker", "--until_done")
+
+        self.assertEqual(all_schedules.filter(state=ScheduleExec.ACTIVE).count(), 2)
+        self.assertEqual(all_schedules.filter(state=ScheduleExec.INVALID).count(), 0)
+        self.assertEqual(all_schedules.count(), 2)
+
+        del schedules_registry["invalid"]
+
+        management.call_command("worker", "--until_done")
+
+        self.assertEqual(all_schedules.filter(state=ScheduleExec.ACTIVE).count(), 1)
+        self.assertEqual(all_schedules.filter(state=ScheduleExec.INVALID).count(), 1)
+        self.assertEqual(all_schedules.count(), 2)
+
     def test_named_queues(self):
         """Checking named queues"""
 

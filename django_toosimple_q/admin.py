@@ -77,11 +77,7 @@ class TaskExecAdmin(ReadOnlyAdmin):
 
 @admin.register(ScheduleExec)
 class ScheduleExecAdmin(ReadOnlyAdmin):
-    list_display = [
-        "name",
-        "last_check",
-        "last_run_",
-    ]
+    list_display = ["icon", "name", "last_check", "last_run_", "cron"]
     list_display_links = ["name"]
     ordering = ["last_check"]
 

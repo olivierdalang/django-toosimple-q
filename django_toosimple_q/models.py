@@ -76,7 +76,7 @@ class TaskExec(models.Model):
         elif self.state == TaskExec.INTERRUPTED:
             return "🛑"
         elif self.state == TaskExec.INVALID:
-            return "⭕️"
+            return "⚠️"
         else:
             return "❓"
 
@@ -85,18 +85,39 @@ class ScheduleExec(models.Model):
     class Meta:
         verbose_name = "Schedule Execution"
 
+    ACTIVE = "ACTIVE"
+    INVALID = "INVALID"
+
+    state_choices = (
+        (ACTIVE, "ACTIVE"),
+        (INVALID, "INVALID"),
+    )
+
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
     last_check = models.DateTimeField(null=True, blank=True, default=timezone.now)
     last_run = models.ForeignKey(
         TaskExec, null=True, blank=True, on_delete=models.SET_NULL
     )
+    state = models.CharField(max_length=32, choices=state_choices, default=ACTIVE)
 
     def __str__(self):
+        return f"Task {self.name} {self.icon}"
+
+    @property
+    def cron(self):
         from .schedule import schedules_registry
 
-        # TODO: also use states like done for tasks
         if self.name in schedules_registry:
-            return f"Schedule {self.name} [{schedules_registry[self.name].cron}]"
+            return schedules_registry[self.name].cron
         else:
-            return f"Schedule {self.name} [invalid]"
+            return None
+
+    @property
+    def icon(self):
+        if self.state == ScheduleExec.ACTIVE:
+            return "🟢"
+        elif self.state == ScheduleExec.INVALID:
+            return "⚠️"
+        else:
+            return "❓"

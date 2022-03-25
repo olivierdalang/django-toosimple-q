@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext as _
 
 from ...logging import logger, show_registry
-from ...models import TaskExec
+from ...models import ScheduleExec, TaskExec
 from ...schedule import schedules_registry
 from ...task import tasks_registry
 
@@ -97,6 +97,11 @@ class Command(BaseCommand):
         """Returns True if something happened (so you can loop for testing)"""
 
         did_something = False
+
+        logger.debug(f"Disabling invalid schedules...")
+        ScheduleExec.objects.exclude(name__in=schedules_registry.keys()).update(
+            state=ScheduleExec.INVALID
+        )
 
         logger.debug(f"Checking schedules...")
         for schedule in schedules_registry.values():
