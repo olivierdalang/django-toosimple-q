@@ -103,7 +103,7 @@ class TestMail(QueueAssertionMixin, TestCase):
         EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",
         TOOSIMPLEQ_EMAIL_BACKEND="failing_backend",
     )
-    def test_queue_mail(self):
+    def test_queue_mail_failing_backend(self):
 
         self.assertQueue(0)
 
