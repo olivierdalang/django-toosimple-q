@@ -13,6 +13,11 @@ tasks_registry: Dict[str, "Task"] = {}
 
 
 class Task:
+    """Represents an asnychronous task.
+
+    This class is responsible of queuing and executing the tasks, by managing
+    TaskExec instances."""
+
     def __init__(
         self,
         name: str,
@@ -34,6 +39,11 @@ class Task:
         self.taskexec_kwarg = taskexec_kwarg
 
     def enqueue(self, *args_, due=None, **kwargs_):
+        """Creates a TaskExec instance, effectively queuing execution of this task.
+
+        Returns the created TaskExec, or False if no task was created (which can happen
+        for tasks set as unique, if that task already exists)."""
+
         from .models import TaskExec
 
         due_datetime = due or timezone.now()
