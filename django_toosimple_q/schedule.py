@@ -20,6 +20,7 @@ class Schedule:
         name: str,
         task: Task,
         cron: str,
+        queue: str = "default",
         args: List = [],
         kwargs: Dict = {},
         catch_up: bool = False,
@@ -28,6 +29,7 @@ class Schedule:
         self.name = name
         self.task = task
         self.cron = cron
+        self.queue = queue
         self.args = args
         self.kwargs = kwargs
         self.catch_up = catch_up

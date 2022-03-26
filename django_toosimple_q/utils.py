@@ -3,7 +3,7 @@ from django.core import mail
 from django.db.models import Count
 from django.test import Client, TestCase
 
-from django_toosimple_q.models import TaskExec
+from django_toosimple_q.models import ScheduleExec, TaskExec
 from django_toosimple_q.schedule import schedules_registry
 from django_toosimple_q.task import tasks_registry
 
@@ -69,3 +69,12 @@ class TooSimpleQTestCase(TestCase):
             raise AssertionError(
                 f"Expected {expected_state}, got {actual_state} [{task}]"
             )
+
+    def assertSchedule(self, name, expected_state):
+        try:
+            state = ScheduleExec.objects.get(name=name).state
+        except ScheduleExec.DoesNotExist:
+            state = None
+
+        if state != expected_state:
+            raise AssertionError(f"Expected {expected_state}, got {state} [{name}]")

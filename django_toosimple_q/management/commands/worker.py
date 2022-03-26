@@ -105,6 +105,10 @@ class Command(BaseCommand):
 
         logger.debug(f"Checking schedules...")
         for schedule in schedules_registry.values():
+            if self.queues and schedule.queue not in self.queues:
+                continue
+            if self.excluded_queues and schedule.queue in self.excluded_queues:
+                continue
             did_something |= schedule.execute(self.tick_duration)
 
         logger.debug(f"Waking up tasks...")

@@ -26,7 +26,9 @@ class TaskExec(models.Model):
     task_name = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
+    # TODO: remove queue (this is defined in the registry)
     queue = models.CharField(max_length=32, default="default")
+    # TODO: remove priority (this is defined in the registry)
     priority = models.IntegerField(default=0)
     retries = models.IntegerField(
         default=0, help_text="retries left, -1 means infinite"

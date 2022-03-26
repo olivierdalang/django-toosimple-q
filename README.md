@@ -200,6 +200,19 @@ def my_task(taskexec):
     return f"This was scheduled for {taskexec.due.isoformat()}."
 ```
 
+Similarly to tasks, you can assign schedules to specific queues, and then have your worker only consume tasks from specific queues using `--queue myqueue` or `--exclude_queue myqueue`.
+
+```python
+
+@register_schedule(queue='scheduler')
+@register_task(queue='worker')
+def task():
+    ...
+
+# Then run those with these workers
+# manage.py worker --queue scheduler
+# manage.py worker --queue worker
+```
 
 ### Management comment
 
@@ -319,6 +332,7 @@ $ pre-commit install
   - added `due` argument to `task.queue()`
   - added `taskexec_kwarg` argument to `@register_task`, allowing to access the task execution instance from within the task
   - removed `datetime_kwarg` from `@register_schedule` (use `taskexec_kwarg` and the instance's `due` field instead)
+  - added `queue` argument to `@register_schedule` (which allows pickup schedules selectively by worker)
 
 - 2022-03-24 : v0.4.0
   - made `last_check` and `last_run` optional in the admin
