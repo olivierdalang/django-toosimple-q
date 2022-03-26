@@ -26,7 +26,7 @@ else:
         }
     }
 
-ROOT_URLCONF = "tests.urls"
+ROOT_URLCONF = "demoproject.urls"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     "django_toosimple_q.contrib.mail",
     "django_toosimple_q",
     # Demo application
-    "tests.demoapp",
+    "demoproject.demoapp",
 ]
 
 SITE_ID = 1

@@ -11,7 +11,7 @@ from django_toosimple_q.schedule import schedules_registry
 from .utils import TooSimpleQTestCase
 
 
-class TestCore(TooSimpleQTestCase):
+class TestTasks(TooSimpleQTestCase):
     def test_task_states(self):
         """Checking correctness of task states"""
 
@@ -455,167 +455,6 @@ class TestCore(TooSimpleQTestCase):
             ],
         )
 
-    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
-    def test_schedule(self, frozen_datetime):
-        """Testing schedules"""
-
-        @schedule_task(cron="0 12 * * *")
-        @register_task(name="normal", taskexec_kwarg="taskexec")
-        def a(taskexec):
-            return f"{taskexec.due:%Y-%m-%d %H:%M}"
-
-        @schedule_task(cron="0 12 * * *", run_on_creation=True)
-        @register_task(name="autostart", taskexec_kwarg="taskexec")
-        def b(taskexec):
-            return f"{taskexec.due:%Y-%m-%d %H:%M}"
-
-        @schedule_task(cron="0 12 * * *", catch_up=True)
-        @register_task(name="catchup", taskexec_kwarg="taskexec")
-        def c(taskexec):
-            return f"{taskexec.due:%Y-%m-%d %H:%M}"
-
-        @schedule_task(cron="0 12 * * *", run_on_creation=True, catch_up=True)
-        @register_task(name="autostartcatchup", taskexec_kwarg="taskexec")
-        def d(taskexec):
-            return f"{taskexec.due:%Y-%m-%d %H:%M}"
-
-        self.assertEquals(len(schedules_registry), 4)
-        self.assertEquals(ScheduleExec.objects.count(), 0)
-        self.assertQueue(0)
-
-        management.call_command("worker", "--until_done")
-
-        # first run, only tasks with run_on_creation=True should run as no time passed
-        self.assertQueue(0, task_name="normal")
-        self.assertQueue(1, task_name="autostart")
-        self.assertQueue(0, task_name="catchup")
-        self.assertQueue(1, task_name="autostartcatchup")
-        self.assertQueue(2)
-
-        management.call_command("worker", "--until_done")
-
-        # second run, no time passed so no change
-        self.assertQueue(0, task_name="normal")
-        self.assertQueue(1, task_name="autostart")
-        self.assertQueue(0, task_name="catchup")
-        self.assertQueue(1, task_name="autostartcatchup")
-        self.assertQueue(2)
-
-        frozen_datetime.move_to("2020-01-02")
-        management.call_command("worker", "--until_done")
-
-        # one day passed, all tasks should have run once
-        self.assertQueue(1, task_name="normal")
-        self.assertQueue(2, task_name="autostart")
-        self.assertQueue(1, task_name="catchup")
-        self.assertQueue(2, task_name="autostartcatchup")
-        self.assertQueue(6)
-
-        frozen_datetime.move_to("2020-01-05")
-        management.call_command("worker", "--until_done")
-
-        # three day passed, catch_up should have run thrice and other once
-        self.assertQueue(2, task_name="normal")
-        self.assertQueue(3, task_name="autostart")
-        self.assertQueue(4, task_name="catchup")
-        self.assertQueue(5, task_name="autostartcatchup")
-        self.assertQueue(14)
-
-        # make sure all tasks succeeded
-        self.assertQueue(14, state=TaskExec.States.SUCCEEDED)
-
-        # make sure we got correct dates
-        self.assertResults(
-            task_name="normal",
-            expected=[
-                "2020-01-01 12:00",
-                "2020-01-04 12:00",
-            ],
-        )
-        self.assertResults(
-            task_name="autostart",
-            expected=[
-                "2019-12-31 12:00",
-                "2020-01-01 12:00",
-                "2020-01-04 12:00",
-            ],
-        )
-        self.assertResults(
-            task_name="catchup",
-            expected=[
-                "2020-01-01 12:00",
-                "2020-01-02 12:00",
-                "2020-01-03 12:00",
-                "2020-01-04 12:00",
-            ],
-        )
-        self.assertResults(
-            task_name="autostartcatchup",
-            expected=[
-                "2019-12-31 12:00",
-                "2020-01-01 12:00",
-                "2020-01-02 12:00",
-                "2020-01-03 12:00",
-                "2020-01-04 12:00",
-            ],
-        )
-
-    @freeze_time("2020-01-05", as_kwarg="frozen_datetime")
-    def test_task_taskexec_kwarg(self, frozen_datetime):
-        """Checking taskexec_kwarg feature"""
-
-        @register_task(taskexec_kwarg="taskexec")
-        def my_task(taskexec):
-            return f"state: {taskexec.state} due: {taskexec.due}"
-
-        t1 = my_task.queue()
-        management.call_command("worker", "--until_done")
-        t1.refresh_from_db()
-        self.assertEqual(t1.result, f"state: PROCESSING due: 2020-01-05 00:00:00+00:00")
-
-        t2 = my_task.queue(due=timezone.now() - datetime.timedelta(days=1))
-        management.call_command("worker", "--until_done")
-        t2.refresh_from_db()
-        self.assertEqual(t2.result, f"state: PROCESSING due: 2020-01-04 00:00:00+00:00")
-
-    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
-    def test_invalid_schedule(self, frozen_datetime):
-        """Testing invalid schedules"""
-
-        @schedule_task(cron="0 * * * *")
-        @register_task(name="valid")
-        def a():
-            return f"Valid task"
-
-        @schedule_task(cron="0 * * * *")
-        @register_task(name="invalid")
-        def a():
-            return f"Invalid task"
-
-        all_schedules = ScheduleExec.objects.all()
-
-        management.call_command("worker", "--until_done")
-
-        self.assertEqual(
-            all_schedules.filter(state=ScheduleExec.States.ACTIVE).count(), 2
-        )
-        self.assertEqual(
-            all_schedules.filter(state=ScheduleExec.States.INVALID).count(), 0
-        )
-        self.assertEqual(all_schedules.count(), 2)
-
-        del schedules_registry["invalid"]
-
-        management.call_command("worker", "--until_done")
-
-        self.assertEqual(
-            all_schedules.filter(state=ScheduleExec.States.ACTIVE).count(), 1
-        )
-        self.assertEqual(
-            all_schedules.filter(state=ScheduleExec.States.INVALID).count(), 1
-        )
-        self.assertEqual(all_schedules.count(), 2)
-
     def test_named_queues(self):
         """Checking named queues"""
 
@@ -737,3 +576,236 @@ class TestCore(TooSimpleQTestCase):
         self.assertTask(task_f, TaskExec.States.SUCCEEDED)
         self.assertTask(task_g, TaskExec.States.SUCCEEDED)
         self.assertTask(task_h, TaskExec.States.SUCCEEDED)
+
+    @freeze_time("2020-01-05", as_kwarg="frozen_datetime")
+    def test_task_taskexec_kwarg(self, frozen_datetime):
+        """Checking taskexec_kwarg feature"""
+
+        @register_task(taskexec_kwarg="taskexec")
+        def my_task(taskexec):
+            return f"state: {taskexec.state} due: {taskexec.due}"
+
+        t1 = my_task.queue()
+        management.call_command("worker", "--until_done")
+        t1.refresh_from_db()
+        self.assertEqual(t1.result, f"state: PROCESSING due: 2020-01-05 00:00:00+00:00")
+
+        t2 = my_task.queue(due=timezone.now() - datetime.timedelta(days=1))
+        management.call_command("worker", "--until_done")
+        t2.refresh_from_db()
+        self.assertEqual(t2.result, f"state: PROCESSING due: 2020-01-04 00:00:00+00:00")
+
+
+class TestSchedules(TooSimpleQTestCase):
+    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
+    def test_schedule(self, frozen_datetime):
+        """Testing schedules"""
+
+        @schedule_task(cron="0 12 * * *")
+        @register_task(name="normal", taskexec_kwarg="taskexec")
+        def a(taskexec):
+            return f"{taskexec.due:%Y-%m-%d %H:%M}"
+
+        @schedule_task(cron="0 12 * * *", run_on_creation=True)
+        @register_task(name="autostart", taskexec_kwarg="taskexec")
+        def b(taskexec):
+            return f"{taskexec.due:%Y-%m-%d %H:%M}"
+
+        @schedule_task(cron="0 12 * * *", catch_up=True)
+        @register_task(name="catchup", taskexec_kwarg="taskexec")
+        def c(taskexec):
+            return f"{taskexec.due:%Y-%m-%d %H:%M}"
+
+        @schedule_task(cron="0 12 * * *", run_on_creation=True, catch_up=True)
+        @register_task(name="autostartcatchup", taskexec_kwarg="taskexec")
+        def d(taskexec):
+            return f"{taskexec.due:%Y-%m-%d %H:%M}"
+
+        self.assertEquals(len(schedules_registry), 4)
+        self.assertEquals(ScheduleExec.objects.count(), 0)
+        self.assertQueue(0)
+
+        management.call_command("worker", "--until_done")
+
+        # first run, only tasks with run_on_creation=True should run as no time passed
+        self.assertQueue(0, task_name="normal")
+        self.assertQueue(1, task_name="autostart")
+        self.assertQueue(0, task_name="catchup")
+        self.assertQueue(1, task_name="autostartcatchup")
+        self.assertQueue(2)
+
+        management.call_command("worker", "--until_done")
+
+        # second run, no time passed so no change
+        self.assertQueue(0, task_name="normal")
+        self.assertQueue(1, task_name="autostart")
+        self.assertQueue(0, task_name="catchup")
+        self.assertQueue(1, task_name="autostartcatchup")
+        self.assertQueue(2)
+
+        frozen_datetime.move_to("2020-01-02")
+        management.call_command("worker", "--until_done")
+
+        # one day passed, all tasks should have run once
+        self.assertQueue(1, task_name="normal")
+        self.assertQueue(2, task_name="autostart")
+        self.assertQueue(1, task_name="catchup")
+        self.assertQueue(2, task_name="autostartcatchup")
+        self.assertQueue(6)
+
+        frozen_datetime.move_to("2020-01-05")
+        management.call_command("worker", "--until_done")
+
+        # three day passed, catch_up should have run thrice and other once
+        self.assertQueue(2, task_name="normal")
+        self.assertQueue(3, task_name="autostart")
+        self.assertQueue(4, task_name="catchup")
+        self.assertQueue(5, task_name="autostartcatchup")
+        self.assertQueue(14)
+
+        # make sure all tasks succeeded
+        self.assertQueue(14, state=TaskExec.States.SUCCEEDED)
+
+        # make sure we got correct dates
+        self.assertResults(
+            task_name="normal",
+            expected=[
+                "2020-01-01 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
+        self.assertResults(
+            task_name="autostart",
+            expected=[
+                "2019-12-31 12:00",
+                "2020-01-01 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
+        self.assertResults(
+            task_name="catchup",
+            expected=[
+                "2020-01-01 12:00",
+                "2020-01-02 12:00",
+                "2020-01-03 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
+        self.assertResults(
+            task_name="autostartcatchup",
+            expected=[
+                "2019-12-31 12:00",
+                "2020-01-01 12:00",
+                "2020-01-02 12:00",
+                "2020-01-03 12:00",
+                "2020-01-04 12:00",
+            ],
+        )
+
+    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
+    def test_invalid_schedule(self, frozen_datetime):
+        """Testing invalid schedules"""
+
+        @schedule_task(cron="0 * * * *")
+        @register_task(name="valid")
+        def a():
+            return f"Valid task"
+
+        @schedule_task(cron="0 * * * *")
+        @register_task(name="invalid")
+        def a():
+            return f"Invalid task"
+
+        all_schedules = ScheduleExec.objects.all()
+
+        management.call_command("worker", "--until_done")
+
+        self.assertEqual(
+            all_schedules.filter(state=ScheduleExec.States.ACTIVE).count(), 2
+        )
+        self.assertEqual(
+            all_schedules.filter(state=ScheduleExec.States.INVALID).count(), 0
+        )
+        self.assertEqual(all_schedules.count(), 2)
+
+        del schedules_registry["invalid"]
+
+        management.call_command("worker", "--until_done")
+
+        self.assertEqual(
+            all_schedules.filter(state=ScheduleExec.States.ACTIVE).count(), 1
+        )
+        self.assertEqual(
+            all_schedules.filter(state=ScheduleExec.States.INVALID).count(), 1
+        )
+        self.assertEqual(all_schedules.count(), 2)
+
+
+class TestAdmin(TooSimpleQTestCase):
+    def test_task_admin(self):
+        """Check if task admin pages work"""
+
+        @register_task(name="a")
+        def a():
+            return 2
+
+        task_exec = a.queue()
+
+        management.call_command("worker", "--until_done")
+
+        response = self.client.get("/admin/toosimpleq/taskexec/")
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.get(f"/admin/toosimpleq/taskexec/{task_exec.pk}/change/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_schedule_admin(self):
+        """Check if schedule admin pages work"""
+
+        @schedule_task(cron="* * * * *")
+        @register_task(name="a")
+        def a():
+            return 2
+
+        management.call_command("worker", "--until_done")
+
+        response = self.client.get("/admin/toosimpleq/scheduleexec/")
+        self.assertEqual(response.status_code, 200)
+
+        scheduleexec = ScheduleExec.objects.first()
+        response = self.client.get(
+            f"/admin/toosimpleq/scheduleexec/{scheduleexec.pk}/change/"
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_task_admin_requeue_action(self):
+        """Check if the requeue action works"""
+
+        @register_task(name="a")
+        def a():
+            return 2
+
+        task_exec = a.queue()
+
+        self.assertQueue(0, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
+
+        management.call_command("worker", "--until_done")
+
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(0, state=TaskExec.States.QUEUED)
+
+        data = {
+            "action": "action_requeue",
+            "_selected_action": task_exec.pk,
+        }
+        response = self.client.post("/admin/toosimpleq/taskexec/", data, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
+
+        management.call_command("worker", "--until_done")
+
+        self.assertQueue(2, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(0, state=TaskExec.States.QUEUED)
