@@ -16,13 +16,32 @@ class TaskExec(models.Model):
         verbose_name = "Task Execution"
 
     class States(models.TextChoices):
-        QUEUED = "QUEUED", _("Queued")
         SLEEPING = "SLEEPING", _("Sleeping")
+        QUEUED = "QUEUED", _("Queued")
         PROCESSING = "PROCESSING", _("Processing")
-        FAILED = "FAILED", _("Failed")
         SUCCEEDED = "SUCCEEDED", _("Succeeded")
-        INVALID = "INVALID", _("Invalid")
         INTERRUPTED = "INTERRUPTED", _("Interrupted")
+        FAILED = "FAILED", _("Failed")
+        INVALID = "INVALID", _("Invalid")
+
+        @classmethod
+        def icon(cls, state):
+            if state == cls.SLEEPING:
+                return "💤"
+            elif state == cls.QUEUED:
+                return "⌚"
+            elif state == cls.PROCESSING:
+                return "🚧"
+            elif state == cls.SUCCEEDED:
+                return "✔️"
+            elif state == cls.FAILED:
+                return "❌"
+            elif state == cls.INTERRUPTED:
+                return "🛑"
+            elif state == cls.INVALID:
+                return "⚠️"
+            else:
+                return "❓"
 
     id = models.BigAutoField(primary_key=True)
     task_name = models.CharField(max_length=1024)
@@ -78,22 +97,7 @@ class TaskExec(models.Model):
 
     @property
     def icon(self):
-        if self.state == TaskExec.States.SLEEPING:
-            return "💤"
-        elif self.state == TaskExec.States.QUEUED:
-            return "⌚"
-        elif self.state == TaskExec.States.PROCESSING:
-            return "🚧"
-        elif self.state == TaskExec.States.SUCCEEDED:
-            return "✔️"
-        elif self.state == TaskExec.States.FAILED:
-            return "❌"
-        elif self.state == TaskExec.States.INTERRUPTED:
-            return "🛑"
-        elif self.state == TaskExec.States.INVALID:
-            return "⚠️"
-        else:
-            return "❓"
+        return TaskExec.States.icon(self.state)
 
 
 class ScheduleExec(models.Model):
@@ -103,6 +107,15 @@ class ScheduleExec(models.Model):
     class States(models.TextChoices):
         ACTIVE = "ACTIVE", _("Active")
         INVALID = "INVALID", _("Invalid")
+
+        @classmethod
+        def icon(cls, state):
+            if state == cls.ACTIVE:
+                return "🟢"
+            elif state == cls.INVALID:
+                return "⚠️"
+            else:
+                return "❓"
 
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
@@ -140,9 +153,4 @@ class ScheduleExec(models.Model):
 
     @property
     def icon(self):
-        if self.state == ScheduleExec.States.ACTIVE:
-            return "🟢"
-        elif self.state == ScheduleExec.States.INVALID:
-            return "⚠️"
-        else:
-            return "❓"
+        return ScheduleExec.States.icon(self.state)
