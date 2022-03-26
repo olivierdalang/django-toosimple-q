@@ -29,6 +29,8 @@ def prepare_toxiproxy():
             "toxiproxy",
             "-p",
             "5444:5444",
+            "--add-host",
+            "host.docker.internal:host-gateway",
             "-d",
             "--rm",
             "ghcr.io/shopify/toxiproxy",
