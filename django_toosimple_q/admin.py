@@ -67,7 +67,7 @@ class TaskExecAdmin(ReadOnlyAdmin):
     list_filter = ["task_name", TaskQueueListFilter, "state"]
     actions = ["action_requeue"]
     ordering = ["-created"]
-    readonly_fields = ["result"]
+    readonly_fields = ["queue", "priority", "result"]
 
     def arguments_(self, obj):
         return format_html(
@@ -123,6 +123,7 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     list_display_links = ["name"]
     ordering = ["last_tick"]
     list_filter = ["name", ScheduleQueueListFilter, "state"]
+    readonly_fields = ["cron", "queue", "last_run_due_"]
 
     @admin.display(ordering="last_run__due")
     def last_run_due_(self, obj):
