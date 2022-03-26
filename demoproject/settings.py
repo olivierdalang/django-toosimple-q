@@ -37,8 +37,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.staticfiles",
     "django_toosimple_q",
-    # for testing concurrency
-    "demoproject.concurrency",
     # demo
     "demoproject.demoapp",
     "django_toosimple_q.contrib.mail",

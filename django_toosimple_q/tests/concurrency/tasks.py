@@ -3,11 +3,11 @@ import time
 from django.contrib.auth.models import User
 from django.db import IntegrityError
 
-from django_toosimple_q.decorators import register_task, schedule_task
+from ...decorators import register_task, schedule_task
 
 
-@schedule_task(cron="* * * * *", queue="concurrency_schedules")
-@register_task(name="create_user", taskexec_kwarg="taskexec", queue="concurrency_tasks")
+@schedule_task(cron="* * * * *", queue="schedules")
+@register_task(name="create_user", taskexec_kwarg="taskexec", queue="tasks")
 def create_user(taskexec):
     time.sleep(0.5)
     retry = 0

@@ -5,7 +5,7 @@ from django.core.mail import send_mail, send_mass_mail
 from django.test.utils import override_settings
 
 from ...models import TaskExec
-from ...utils import TooSimpleQTestCase
+from ...tests.base import TooSimpleQTestCase
 from . import tasks as mail_tasks
 
 
