@@ -83,7 +83,7 @@ class Schedule:
                 did_something = True
 
             schedule_exec.last_tick = timezone.now()
-            schedule_exec.status = ScheduleExec.States.ACTIVE
+            schedule_exec.state = ScheduleExec.States.ACTIVE
             schedule_exec.save()
 
         return did_something
