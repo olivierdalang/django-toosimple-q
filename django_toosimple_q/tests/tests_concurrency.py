@@ -20,6 +20,7 @@ from joblib import Parallel, delayed
 
 from django_toosimple_q.models import ScheduleExec, TaskExec
 
+from ..logging import logger
 from .concurrency.utils import prepare_toxiproxy, sys_call
 
 COUNT = 32
@@ -35,9 +36,9 @@ class ConcurrencyTest(TransactionTestCase):
         prepare_toxiproxy()
 
     def run_workers_batch(self, queue=None):
-        command = "python manage.py worker --until_done"
+        command = ["python", "manage.py", "worker", "--until_done"]
         if queue:
-            command += f" --queue {queue}"
+            command.extend(["--queue", queue])
 
         outputs = Parallel(n_jobs=COUNT)(
             delayed(sys_call)(command) for i in range(COUNT)
@@ -45,9 +46,17 @@ class ConcurrencyTest(TransactionTestCase):
 
         # Ensure no worker failed
         errored_ouputs = [o for o in outputs if o.returncode != 0]
-        err_lines = "\n".join([o.stderr.splitlines()[-1] for o in errored_ouputs])
-        err_message = f"{len(errored_ouputs)} workers errored:\n{err_lines}"
-        self.assertEqual(len(errored_ouputs), 0, err_message)
+        if errored_ouputs:
+            logger.exception(f"Last output:")
+
+            def indent(txt):
+                return "\n".join([" >  " + l for l in txt.splitlines()])
+
+            logger.exception("\n" + indent(errored_ouputs[-1].stdout))
+            logger.exception("\n" + indent(errored_ouputs[-1].stderr))
+            raise AssertionError(
+                f"{len(errored_ouputs)} out of {len(outputs)} workers errored!"
+            )
 
     def test_schedules(self):
 
