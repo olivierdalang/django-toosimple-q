@@ -575,21 +575,3 @@ class TestTasks(TooSimpleQTestCase):
         self.assertTask(task_f, TaskExec.States.SUCCEEDED)
         self.assertTask(task_g, TaskExec.States.SUCCEEDED)
         self.assertTask(task_h, TaskExec.States.SUCCEEDED)
-
-    @freeze_time("2020-01-05", as_kwarg="frozen_datetime")
-    def test_task_taskexec_kwarg(self, frozen_datetime):
-        """Checking taskexec_kwarg feature"""
-
-        @register_task(taskexec_kwarg="taskexec")
-        def my_task(taskexec):
-            return f"state: {taskexec.state} due: {taskexec.due}"
-
-        t1 = my_task.queue()
-        management.call_command("worker", "--until_done")
-        t1.refresh_from_db()
-        self.assertEqual(t1.result, f"state: PROCESSING due: 2020-01-05 00:00:00+00:00")
-
-        t2 = my_task.queue(due=timezone.now() - datetime.timedelta(days=1))
-        management.call_command("worker", "--until_done")
-        t2.refresh_from_db()
-        self.assertEqual(t2.result, f"state: PROCESSING due: 2020-01-04 00:00:00+00:00")

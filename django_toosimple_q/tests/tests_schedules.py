@@ -13,25 +13,32 @@ class TestSchedules(TooSimpleQTestCase):
     def test_schedule(self, frozen_datetime):
         """Testing schedules"""
 
-        @schedule_task(cron="0 12 * * *")
-        @register_task(name="normal", taskexec_kwarg="taskexec")
-        def a(taskexec):
-            return f"{taskexec.due:%Y-%m-%d %H:%M}"
+        @schedule_task(cron="0 12 * * *", datetime_kwarg="scheduled_on")
+        @register_task(name="normal")
+        def a(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        @schedule_task(cron="0 12 * * *", run_on_creation=True)
-        @register_task(name="autostart", taskexec_kwarg="taskexec")
-        def b(taskexec):
-            return f"{taskexec.due:%Y-%m-%d %H:%M}"
+        @schedule_task(
+            cron="0 12 * * *", run_on_creation=True, datetime_kwarg="scheduled_on"
+        )
+        @register_task(name="autostart")
+        def b(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        @schedule_task(cron="0 12 * * *", catch_up=True)
-        @register_task(name="catchup", taskexec_kwarg="taskexec")
-        def c(taskexec):
-            return f"{taskexec.due:%Y-%m-%d %H:%M}"
+        @schedule_task(cron="0 12 * * *", catch_up=True, datetime_kwarg="scheduled_on")
+        @register_task(name="catchup")
+        def c(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        @schedule_task(cron="0 12 * * *", run_on_creation=True, catch_up=True)
-        @register_task(name="autostartcatchup", taskexec_kwarg="taskexec")
-        def d(taskexec):
-            return f"{taskexec.due:%Y-%m-%d %H:%M}"
+        @schedule_task(
+            cron="0 12 * * *",
+            run_on_creation=True,
+            catch_up=True,
+            datetime_kwarg="scheduled_on",
+        )
+        @register_task(name="autostartcatchup")
+        def d(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
         self.assertEquals(len(schedules_registry), 4)
         self.assertEquals(ScheduleExec.objects.count(), 0)

@@ -151,15 +151,6 @@ def my_task(name):
 my_task.queue("John", due=timezone.now() + timedelta(hours=1))
 ```
 
-
-You can get the task execution instance to access task exectution details. This can be
-used with schedules as they set the due date properly.
-```python
-@register_task(taskexec_kwarg="taskexec")
-def my_task(taskexec):
-    return f"{taskexec} was supposed to run at {taskexec.due} and actully started at {taskexec.started}"
-```
-
 ### Schedules
 
 By default, `last_tick` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
@@ -190,13 +181,13 @@ def my_task(time):
     return f"Good {time} John !"
 ```
 
-If you need the cron datetime inside the task, use the `due` field of the Task execution
-instance, as described above :
+You may get the schedule's cron datetime provided as a keyword argument to the task using the `datetime_kwarg` argument :
+
 ```python
-@schedule_task(cron="30 8 * * *")
-@register_task(taskexec_kwarg="taskexec")
-def my_task(taskexec):
-    return f"This was scheduled for {taskexec.due.isoformat()}."
+@schedule_task(cron="30 8 * * *", datetime_kwarg="scheduled_on")
+@register_task()
+def my_task(scheduled_on):
+    return f"This was scheduled for {scheduled_on.isoformat()}."
 ```
 
 Similarly to tasks, you can assign schedules to specific queues, and then have your worker only consume tasks from specific queues using `--queue myqueue` or `--exclude_queue myqueue`.
@@ -330,8 +321,6 @@ $ pre-commit install
   - included a demo project showcasing some custom tasks setups
   - updated compatibility to Django 3.2 and 4.0, and Python 3.8-3.10
   - added `due` argument to `task.queue()`
-  - added `taskexec_kwarg` argument to `@register_task`, allowing to access the task execution instance from within the task
-  - removed `datetime_kwarg` from `@register_schedule` (use `taskexec_kwarg` and the instance's `due` field instead)
   - added `queue` argument to `@register_schedule` (which allows pickup schedules selectively by worker)
   - `priority` and `queue` are no longer fields in the database, but are used directly from the registry
 

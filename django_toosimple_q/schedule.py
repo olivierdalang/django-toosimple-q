@@ -23,6 +23,7 @@ class Schedule:
         queue: str = "default",
         args: List = [],
         kwargs: Dict = {},
+        datetime_kwarg: str = None,
         catch_up: bool = False,
         run_on_creation: bool = False,
     ):
@@ -32,6 +33,7 @@ class Schedule:
         self.queue = queue
         self.args = args
         self.kwargs = kwargs
+        self.datetime_kwarg = datetime_kwarg
         self.catch_up = catch_up
         self.run_on_creation = run_on_creation
 
@@ -74,8 +76,12 @@ class Schedule:
 
                 logger.debug(f"Due : {self}")
 
+                dt_kwarg = {}
+                if self.datetime_kwarg:
+                    dt_kwarg = {self.datetime_kwarg: next_due}
+
                 t = tasks_registry[self.name].enqueue(
-                    *self.args, due=next_due, **self.kwargs
+                    *self.args, due=next_due, **dt_kwarg, **self.kwargs
                 )
                 if t:
                     schedule_exec.last_run = t

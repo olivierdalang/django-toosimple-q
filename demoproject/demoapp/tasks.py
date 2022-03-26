@@ -9,10 +9,10 @@ from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import TaskExec
 
 
-@schedule_task(cron="* * * * *", queue="demo")
-@register_task(name="say_hi", taskexec_kwarg="taskexec", queue="demo")
-def say_hi(taskexec):
-    return f"Had to say hi {taskexec.due} (it is now {timezone.now()})"
+@schedule_task(cron="* * * * *", datetime_kwarg="scheduled_time")
+@register_task(name="say_hi")
+def say_hi(scheduled_time):
+    return f"Had to say hi {scheduled_time} (it is now {timezone.now()})"
 
 
 @schedule_task(cron="* * * * *", queue="demo")
@@ -30,12 +30,6 @@ def logging():
     sys.stdout.write("This should go to standard output")
     sys.stderr.write("This should go to error output")
     return "This is the result"
-
-
-@schedule_task(cron="* * * * *", queue="demo", catch_up=True)
-@register_task(name="task_instance", taskexec_kwarg="taskexec", queue="demo")
-def task_instance(taskexec):
-    return f"{taskexec} was supposed to run at {taskexec.due} and actully started at {taskexec.started}"
 
 
 @schedule_task(cron="*/5 * * * *", queue="demo")

@@ -7,14 +7,14 @@ from ...decorators import register_task, schedule_task
 
 
 @schedule_task(cron="* * * * *", queue="schedules")
-@register_task(name="create_user", taskexec_kwarg="taskexec", queue="tasks")
-def create_user(taskexec):
+@register_task(name="create_user", queue="tasks")
+def create_user():
     time.sleep(0.5)
     retry = 0
     while True:
         suffix = f"-copy{retry}" if retry > 0 else ""
         try:
-            User.objects.create(username=f"username-{taskexec.id}{suffix}")
+            User.objects.create(username=f"user{suffix}")
             break
         except IntegrityError:
             retry += 1
