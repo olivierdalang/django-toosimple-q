@@ -1,16 +1,3 @@
-"""
-This runs some concurrency tests. It sets up a database with simulated lag to
-increase race conditions likelyhood, thus requires a running docker daemon.
-
-Usage:
-```
-# Run these tests
-python test_concurrency.py
-```
-
-WARNING: this will flush the database !!
-"""
-
 import os
 import unittest
 
@@ -18,9 +5,10 @@ from django.contrib.auth.models import User
 from django.test import TransactionTestCase
 from joblib import Parallel, delayed
 
-from django_toosimple_q.models import ScheduleExec, TaskExec
+from django_toosimple_q.models import ScheduleExec
 
 from ..logging import logger
+from .concurrency.tasks import create_user
 from .concurrency.utils import prepare_toxiproxy, sys_call
 
 COUNT = 32
@@ -30,16 +18,21 @@ COUNT = 32
     os.environ.get("TOOSIMPLEQ_TEST_DB") != "postgres", "requires postgres backend"
 )
 class ConcurrencyTest(TransactionTestCase):
+    """This runs some concurrency tests. It sets up a database with simulated lag to
+    increase race conditions likelyhood, thus requires a running docker daemon."""
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         prepare_toxiproxy()
 
-    def run_workers_batch(self, queue=None):
-        command = ["python", "manage.py", "worker", "--until_done"]
+    def make_command(self, queue=None):
+        command = ["python", "manage.py", "worker", "--until_done", "--skip-checks"]
         if queue:
             command.extend(["--queue", queue])
+        return command
 
+    def run_workers_batch(self, command):
         outputs = Parallel(n_jobs=COUNT)(
             delayed(sys_call)(command) for i in range(COUNT)
         )
@@ -62,14 +55,14 @@ class ConcurrencyTest(TransactionTestCase):
 
         # Ensure no duplicate schedules were created
         self.assertEqual(ScheduleExec.objects.count(), 0)
-        self.run_workers_batch(queue="schedules")
+        self.run_workers_batch(self.make_command(queue="schedules"))
         self.assertEqual(ScheduleExec.objects.count(), 1)
 
     def test_tasks(self):
 
-        TaskExec.objects.create(task_name="create_user")
+        create_user.queue()
 
         # Ensure the task really was just executed once
         self.assertEqual(User.objects.count(), 0)
-        self.run_workers_batch(queue="tasks")
+        self.run_workers_batch(self.make_command(queue="tasks"))
         self.assertEqual(User.objects.count(), 1)

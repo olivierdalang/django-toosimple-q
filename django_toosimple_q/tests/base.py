@@ -32,7 +32,9 @@ class TooSimpleQTestCase(TestCase):
         # Clear the mailbox
         mail.outbox.clear()
 
-    def assertQueue(self, expected_count, task_name=None, state=None, replaced=None):
+    def assertQueue(
+        self, expected_count, task_name=None, state=None, replaced=None, due=None
+    ):
         tasks = TaskExec.objects.all()
         if task_name:
             tasks = tasks.filter(task_name=task_name)
@@ -40,6 +42,8 @@ class TooSimpleQTestCase(TestCase):
             tasks = tasks.filter(state=state)
         if replaced is not None:
             tasks = tasks.filter(replaced_by__isnull=not replaced)
+        if due is not None:
+            tasks = tasks.filter(due=due)
         actual_count = tasks.count()
         if actual_count != expected_count:
             vals = (

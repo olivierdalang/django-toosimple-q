@@ -14,11 +14,15 @@ class TestTasks(TooSimpleQTestCase):
     def test_task_states(self):
         """Checking correctness of task states"""
 
-        # Succeeding task
         @register_task(name="a")
         def a(x):
             return x * 2
 
+        @register_task(name="b")
+        def b(x):
+            return x / 0
+
+        # Succeeding task
         t = a.queue(2)
         self.assertEqual(t.state, TaskExec.States.QUEUED)
         management.call_command("worker", "--once")
@@ -28,10 +32,6 @@ class TestTasks(TooSimpleQTestCase):
         self.assertEqual(t.error, None)
 
         # Failing task
-        @register_task(name="b")
-        def b(x):
-            return x / 0
-
         t = b.queue(2)
         self.assertEqual(t.state, TaskExec.States.QUEUED)
         management.call_command("worker", "--once")
@@ -39,6 +39,24 @@ class TestTasks(TooSimpleQTestCase):
         self.assertEqual(t.state, TaskExec.States.FAILED)
         self.assertEqual(t.result, None)
         self.assertNotEqual(t.error, None)
+
+        # Task with due date
+        t = a.queue(2, due=timezone.now() - datetime.timedelta(hours=1))
+        self.assertEqual(t.state, TaskExec.States.SLEEPING)
+        management.call_command("worker", "--once")
+        t.refresh_from_db()
+        self.assertEqual(t.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t.result, 4)
+        self.assertEqual(t.error, None)
+
+        # Invalid task
+        t = TaskExec.objects.create(task_name="invalid")
+        self.assertEqual(t.state, TaskExec.States.QUEUED)
+        management.call_command("worker", "--once")
+        t.refresh_from_db()
+        self.assertEqual(t.state, TaskExec.States.INVALID)
+        self.assertEqual(t.result, None)
+        self.assertEqual(t.error, None)
 
     def test_task_registration(self):
         """Checking task registration"""
@@ -279,69 +297,150 @@ class TestTasks(TooSimpleQTestCase):
     def test_task_retries_delay(self, frozen_datetime):
         """Checking task retries with delay"""
 
-        initial_datetime = timezone.now()
-
-        @register_task(name="div_zero", retries=10, retry_delay=10)
+        @register_task(name="div_zero", retries=3, retry_delay=60)
         def div_zero(x):
             return x / 0
 
         self.assertQueue(0)
 
+        # Create the task
         div_zero.queue(1)
-
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.QUEUED,
+            replaced=False,
+            due=datetime.datetime(2020, 1, 1, 0, 0),
+        )
         self.assertQueue(1)
 
+        # the task failed, it should be replaced with a task due in the future (+1 min)
         management.call_command("worker", "--until_done")
-
-        self.assertQueue(0, task_name="div_zero", state=TaskExec.States.QUEUED)
         self.assertQueue(
-            1, task_name="div_zero", state=TaskExec.States.FAILED, replaced=True
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 0),
         )
-        self.assertQueue(1, task_name="div_zero", state=TaskExec.States.SLEEPING)
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.SLEEPING,
+            replaced=False,
+            due=datetime.datetime(2020, 1, 1, 0, 1),
+        )
         self.assertQueue(2)
-        self.assertEqual(TaskExec.objects.last().retries, 9)
-        self.assertEqual(TaskExec.objects.last().retry_delay, 20)
 
         # if we don't wait, no further task will be processed
         management.call_command("worker", "--until_done")
-
-        self.assertQueue(0, task_name="div_zero", state=TaskExec.States.QUEUED)
         self.assertQueue(
-            1, task_name="div_zero", state=TaskExec.States.FAILED, replaced=True
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 0),
         )
-        self.assertQueue(1, task_name="div_zero", state=TaskExec.States.SLEEPING)
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.SLEEPING,
+            replaced=False,
+            due=datetime.datetime(2020, 1, 1, 0, 1),
+        )
         self.assertQueue(2)
-        self.assertEqual(TaskExec.objects.last().retries, 9)
-        self.assertEqual(TaskExec.objects.last().retry_delay, 20)
 
-        # if we wait a bit more than 10 seconds, one retry will be done
-        frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=11))
-
+        # if we wait, one retry will be done ( +1 + 2*+1 = +3min)
+        frozen_datetime.move_to(datetime.datetime(2020, 1, 1, 0, 1))
         management.call_command("worker", "--until_done")
-
-        self.assertQueue(0, task_name="div_zero", state=TaskExec.States.QUEUED)
         self.assertQueue(
-            2, task_name="div_zero", state=TaskExec.States.FAILED, replaced=True
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 0),
         )
-        self.assertQueue(1, task_name="div_zero", state=TaskExec.States.SLEEPING)
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 1),
+        )
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.SLEEPING,
+            replaced=False,
+            due=datetime.datetime(2020, 1, 1, 0, 3),
+        )
         self.assertQueue(3)
-        self.assertEqual(TaskExec.objects.last().retries, 8)
-        self.assertEqual(TaskExec.objects.last().retry_delay, 40)
 
-        # if we wait a bit more than 10+20, then 10+20+40 seconds, two more retries will be done
-        frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=31))
+        # if we wait more, delay continues to increase ( +1 + 2*+1 + 2*2*+1 = +7min)
+        frozen_datetime.move_to(datetime.datetime(2020, 1, 1, 0, 3))
         management.call_command("worker", "--until_done")
-        frozen_datetime.move_to(initial_datetime + datetime.timedelta(seconds=71))
-        management.call_command("worker", "--until_done")
-
-        self.assertQueue(0, task_name="div_zero", state=TaskExec.States.QUEUED)
         self.assertQueue(
-            4, task_name="div_zero", state=TaskExec.States.FAILED, replaced=True
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 0),
         )
-        self.assertQueue(1, task_name="div_zero", state=TaskExec.States.SLEEPING)
-        self.assertQueue(5)
-        self.assertEqual(TaskExec.objects.last().retries, 6)
-        self.assertEqual(TaskExec.objects.last().retry_delay, 160)
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 1),
+        )
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 3),
+        )
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.SLEEPING,
+            replaced=False,
+            due=datetime.datetime(2020, 1, 1, 0, 7),
+        )
+        self.assertQueue(4)
+
+        # if we wait more, last task runs, but we're out of retries, so no new task
+        frozen_datetime.move_to(datetime.datetime(2020, 1, 1, 0, 7))
+        management.call_command("worker", "--until_done")
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 0),
+        )
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 1),
+        )
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=True,
+            due=datetime.datetime(2020, 1, 1, 0, 3),
+        )
+        self.assertQueue(
+            1,
+            task_name="div_zero",
+            state=TaskExec.States.FAILED,
+            replaced=False,
+            due=datetime.datetime(2020, 1, 1, 0, 7),
+        )
+        self.assertQueue(4)
 
     @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
     def test_task_retries_delay_unique(self, frozen_datetime):
