@@ -4,9 +4,7 @@
 
 This packages provides a simplistic task queue and scheduler for Django.
 
-If execution of your tasks is mission critical, do not use this library, and turn to more complex solutions such as Celery, as this package doesn't guarantee task execution nor unique execution.
-
-It is geared towards basic apps, where simplicity primes over reliability. The package offers simple decorator syntax, including cron-like schedules.
+It is geared towards basic apps, where simplicity primes. The package offers simple decorator syntax, including cron-like schedules.
 
 Features :
 
@@ -16,11 +14,12 @@ Features :
 - cron-like scheduling
 - tasks.py autodiscovery
 - django admin integration
+- tasks results stored using the Django ORM
 
 Limitations :
 
-- probably not extremely reliable because of race conditions
 - no multithreading yet (but running multiple workers should work)
+- not well suited for projects spawning a high volume of tasks
 
 Compatibility:
 
@@ -322,6 +321,7 @@ $ pre-commit install
 ## Changelog
 
 - 20xx-xx-xx : v1.0.0 **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+  - improved dealing with concurrency using locking (tested with 32 concurrent workers)
   - renamed `@schedule` -> `@schedule_task`
   - renamed models (`Schedule` -> `ScheduleExec` and `Task` -> `TaskExec`)
   - task name must now be provided as a kwarg (`@register_task("mytask")` -> `@register_task(name="mytask")`)
