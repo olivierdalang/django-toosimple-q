@@ -76,6 +76,7 @@ class TaskExec(models.Model):
 
     @property
     def priority(self):
+        # TODO: use property for task instance instead
         try:
             return tasks_registry[self.task_name].priority
         except KeyError:
@@ -83,6 +84,7 @@ class TaskExec(models.Model):
 
     @property
     def queue(self):
+        # TODO: use property for task instance instead
         try:
             return tasks_registry[self.task_name].queue
         except KeyError:
@@ -90,6 +92,7 @@ class TaskExec(models.Model):
 
     @property
     def unique(self):
+        # TODO: use property for task instance instead
         try:
             return tasks_registry[self.task_name].unique
         except KeyError:
@@ -132,13 +135,31 @@ class ScheduleExec(models.Model):
 
     @property
     def cron(self):
+        # TODO: use property for schedule instance instead
         try:
             return schedules_registry[self.name].cron
         except KeyError:
             return None
 
     @property
+    def args(self):
+        # TODO: use property for schedule instance instead
+        try:
+            return schedules_registry[self.name].args
+        except KeyError:
+            return None
+
+    @property
+    def kwargs(self):
+        # TODO: use property for schedule instance instead
+        try:
+            return schedules_registry[self.name].kwargs
+        except KeyError:
+            return None
+
+    @property
     def queue(self):
+        # TODO: use property for schedule instance instead
         try:
             return schedules_registry[self.name].queue
         except KeyError:
@@ -146,6 +167,7 @@ class ScheduleExec(models.Model):
 
     @property
     def priority(self):
+        # TODO: use property for schedule instance instead
         try:
             return schedules_registry[self.name].priority
         except KeyError:

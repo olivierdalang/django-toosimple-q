@@ -115,6 +115,7 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
         "icon",
         "name",
         "cron",
+        "arguments_",
         "queue",
         "last_tick_",
         "last_run_due_",
@@ -123,7 +124,14 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     list_display_links = ["name"]
     ordering = ["last_tick"]
     list_filter = ["name", ScheduleQueueListFilter, "state"]
-    readonly_fields = ["cron", "queue", "last_run_due_"]
+    readonly_fields = ["cron", "args", "kwargs", "queue", "last_run_due_"]
+
+    def arguments_(self, obj):
+        return format_html(
+            "{}<br/>{}",
+            truncatechars(str(obj.args), 32),
+            truncatechars(str(obj.kwargs), 32),
+        )
 
     @admin.display(ordering="last_run__due")
     def last_run_due_(self, obj):
