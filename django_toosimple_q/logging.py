@@ -1,5 +1,7 @@
 import logging
 
+from .registry import schedules_registry, tasks_registry
+
 formatter = logging.Formatter(
     fmt="[%(asctime)s %(levelname)s] [toosimpleq] %(message)s"
 )
@@ -15,9 +17,6 @@ logger.addHandler(handler)
 
 def show_registry():
     """Helper functions that shows the registry contents"""
-
-    from .schedule import schedules_registry
-    from .task import tasks_registry
 
     if len(schedules_registry):
         schedules_names = ", ".join(schedules_registry.keys())

@@ -3,6 +3,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from picklefield.fields import PickledObjectField
 
+from .registry import schedules_registry, tasks_registry
+
 
 class TaskExec(models.Model):
     """TaskExecution represent a specific planned or past call of a task, including inputs (arguments) and outputs.
@@ -26,10 +28,6 @@ class TaskExec(models.Model):
     task_name = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
-    # TODO: remove queue (this is defined in the registry)
-    queue = models.CharField(max_length=32, default="default")
-    # TODO: remove priority (this is defined in the registry)
-    priority = models.IntegerField(default=0)
     retries = models.IntegerField(
         default=0, help_text="retries left, -1 means infinite"
     )
@@ -56,6 +54,27 @@ class TaskExec(models.Model):
 
     def __str__(self):
         return f"Task {self.task_name} {self.icon}"
+
+    @property
+    def priority(self):
+        try:
+            return tasks_registry[self.task_name].priority
+        except IndexError:
+            return None
+
+    @property
+    def queue(self):
+        try:
+            return tasks_registry[self.task_name].queue
+        except IndexError:
+            return None
+
+    @property
+    def unique(self):
+        try:
+            return tasks_registry[self.task_name].unique
+        except IndexError:
+            return None
 
     @property
     def icon(self):
@@ -100,11 +119,23 @@ class ScheduleExec(models.Model):
 
     @property
     def cron(self):
-        from .schedule import schedules_registry
-
-        if self.name in schedules_registry:
+        try:
             return schedules_registry[self.name].cron
-        else:
+        except IndexError:
+            return None
+
+    @property
+    def queue(self):
+        try:
+            return schedules_registry[self.name].queue
+        except IndexError:
+            return None
+
+    @property
+    def priority(self):
+        try:
+            return schedules_registry[self.name].priority
+        except IndexError:
             return None
 
     @property

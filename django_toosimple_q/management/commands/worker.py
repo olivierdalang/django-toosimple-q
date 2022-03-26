@@ -4,13 +4,13 @@ import time
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Case, Value, When
 from django.utils import timezone
 from django.utils.translation import ugettext as _
 
 from ...logging import logger, show_registry
 from ...models import ScheduleExec, TaskExec
-from ...schedule import schedules_registry
-from ...task import tasks_registry
+from ...registry import schedules_registry, tasks_registry
 
 
 class Command(BaseCommand):
@@ -99,17 +99,31 @@ class Command(BaseCommand):
 
         did_something = False
 
-        logger.debug(f"Disabling invalid schedules...")
-        ScheduleExec.objects.exclude(name__in=schedules_registry.keys()).update(
-            state=ScheduleExec.States.INVALID
-        )
+        logger.debug(f"Disabling orphaned schedules...")
+        with transaction.atomic():
+            count = (
+                ScheduleExec.objects.exclude(state=ScheduleExec.States.INVALID)
+                .exclude(name__in=schedules_registry.keys())
+                .update(state=ScheduleExec.States.INVALID)
+            )
+            if count > 0:
+                logger.warning(f"Found {count} invalid schedules")
+
+        logger.debug(f"Disabling orphaned tasks...")
+        with transaction.atomic():
+            count = (
+                TaskExec.objects.exclude(state=TaskExec.States.INVALID)
+                .exclude(task_name__in=tasks_registry.keys())
+                .update(state=TaskExec.States.INVALID)
+            )
+            if count > 0:
+                logger.warning(f"Found {count} invalid tasks")
 
         logger.debug(f"Checking schedules...")
-        for schedule in schedules_registry.values():
-            if self.queues and schedule.queue not in self.queues:
-                continue
-            if self.excluded_queues and schedule.queue in self.excluded_queues:
-                continue
+        schedules_to_check = schedules_registry.for_queue(
+            self.queues, self.excluded_queues
+        )
+        for schedule in schedules_to_check:
             did_something |= schedule.execute(self.tick_duration)
 
         logger.debug(f"Waking up tasks...")
@@ -118,14 +132,20 @@ class Command(BaseCommand):
         ).update(state=TaskExec.States.QUEUED)
 
         logger.debug(f"Checking tasks...")
+        tasks_to_check = tasks_registry.for_queue(self.queues, self.excluded_queues)
         tasks_execs = TaskExec.objects.filter(state=TaskExec.States.QUEUED)
-        if self.queues:
-            tasks_execs = tasks_execs.filter(queue__in=self.queues)
-        if self.excluded_queues:
-            tasks_execs = tasks_execs.exclude(queue__in=self.excluded_queues)
+        tasks_execs = tasks_execs.filter(task_name__in=[t.name for t in tasks_to_check])
         tasks_execs = tasks_execs.select_for_update()
         with transaction.atomic():
-            task_exec = tasks_execs.order_by("-priority", "created").first()
+            # We compile an ordering clause from the registry
+            order_clause = Case(
+                *[
+                    When(task_name=task.name, then=Value(-task.priority))
+                    for task in tasks_registry.values()
+                ],
+                default=Value(0),
+            )
+            task_exec = tasks_execs.order_by(order_clause, "created").first()
             if task_exec:
                 # We ensure the task is in the registry
                 if task_exec.task_name in tasks_registry:

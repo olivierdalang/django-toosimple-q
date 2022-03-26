@@ -2,14 +2,12 @@ import contextlib
 import io
 import traceback
 from datetime import timedelta
-from typing import Callable, Dict
+from typing import Callable
 
 from django.utils import timezone
 
 from .logging import logger
 from .models import TaskExec
-
-tasks_registry: Dict[str, "Task"] = {}
 
 
 class Task:
@@ -50,7 +48,7 @@ class Task:
 
         if self.unique:
             existing_tasks = TaskExec.objects.filter(
-                task_name=self.name, args=args_, kwargs=kwargs_, queue=self.queue
+                task_name=self.name, args=args_, kwargs=kwargs_
             )
             # If already queued, we don't do anything
             queued_task = existing_tasks.filter(state=TaskExec.States.QUEUED).first()
@@ -78,8 +76,6 @@ class Task:
             kwargs=kwargs_,
             state=TaskExec.States.SLEEPING if due else TaskExec.States.QUEUED,
             due=due_datetime,
-            queue=self.queue,
-            priority=self.priority,
             retries=self.retries,
             retry_delay=self.retry_delay,
         )
@@ -156,8 +152,7 @@ class Task:
             task_name=task_exec.task_name,
             args=task_exec.args,
             kwargs=task_exec.kwargs,
-            priority=task_exec.priority,
-            created=task_exec.created,
+            created=task_exec.created,  # TODO: remove
             retries=retries,
             retry_delay=delay,
             state=TaskExec.States.SLEEPING,

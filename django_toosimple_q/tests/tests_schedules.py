@@ -3,7 +3,7 @@ from freezegun import freeze_time
 
 from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import ScheduleExec, TaskExec
-from django_toosimple_q.schedule import schedules_registry
+from django_toosimple_q.registry import schedules_registry
 
 from .base import TooSimpleQTestCase
 

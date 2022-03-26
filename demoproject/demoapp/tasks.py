@@ -37,8 +37,8 @@ def task_instance(taskexec):
     return f"{taskexec} was supposed to run at {taskexec.due} and actully started at {taskexec.started}"
 
 
-@schedule_task(cron="*/5 * * * *", run_on_creation=True, queue="demo")
-@register_task(name="cleanup", queue="demo")
+@schedule_task(cron="*/5 * * * *", run_on_creation=True, queue="demo-cleanup")
+@register_task(name="cleanup", queue="demo-cleanup", priority=-5)
 def cleanup():
     old_tasks_execs = TaskExec.objects.filter(
         created__lte=timezone.now() - datetime.timedelta(minutes=10)

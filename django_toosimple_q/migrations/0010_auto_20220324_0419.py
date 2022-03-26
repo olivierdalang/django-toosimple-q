@@ -97,4 +97,12 @@ class Migration(migrations.Migration):
                 max_length=32,
             ),
         ),
+        migrations.RemoveField(
+            model_name="taskexec",
+            name="priority",
+        ),
+        migrations.RemoveField(
+            model_name="taskexec",
+            name="queue",
+        ),
     ]

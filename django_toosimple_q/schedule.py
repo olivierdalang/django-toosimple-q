@@ -8,9 +8,8 @@ from django.utils import timezone
 from django_toosimple_q.models import ScheduleExec
 
 from .logging import logger
-from .task import Task, tasks_registry
-
-schedules_registry: Dict[str, "Schedule"] = {}
+from .registry import tasks_registry
+from .task import Task
 
 
 class Schedule:

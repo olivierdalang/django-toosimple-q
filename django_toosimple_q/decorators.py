@@ -1,7 +1,8 @@
 from django.core.exceptions import ImproperlyConfigured
 
-from .schedule import Schedule, schedules_registry
-from .task import Task, tasks_registry
+from .registry import schedules_registry, tasks_registry
+from .schedule import Schedule
+from .task import Task
 
 
 def register_task(**kwargs):

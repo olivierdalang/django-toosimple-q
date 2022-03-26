@@ -5,9 +5,39 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy as _
 
 from .models import ScheduleExec, TaskExec
-from .task import tasks_registry
+from .registry import schedules_registry, tasks_registry
+
+
+class AbstractQueueListFilter(admin.SimpleListFilter):
+    title = _("queue")
+    parameter_name = "queue"
+    registry = None
+    name_field = None
+
+    def lookups(self, request, model_admin):
+        queues = set(item.queue for item in self.registry.values())
+        return [(q, q) for q in sorted(list(queues))]
+
+    def queryset(self, request, queryset):
+        queue = self.value()
+        if queue:
+            names = [
+                item.name for item in self.registry.values() if item.queue == queue
+            ]
+            return queryset.filter(**{f"{self.name_field}__in": names})
+
+
+class TaskQueueListFilter(AbstractQueueListFilter):
+    registry = tasks_registry
+    name_field = "task_name"
+
+
+class ScheduleQueueListFilter(AbstractQueueListFilter):
+    registry = schedules_registry
+    name_field = "name"
 
 
 class ReadOnlyAdmin(admin.ModelAdmin):
@@ -34,7 +64,7 @@ class TaskExecAdmin(ReadOnlyAdmin):
         "result_",
     ]
     list_display_links = ["task_name"]
-    list_filter = ["task_name", "queue", "state"]
+    list_filter = ["task_name", TaskQueueListFilter, "state"]
     actions = ["action_requeue"]
     ordering = ["-created"]
     readonly_fields = ["result"]
@@ -85,12 +115,14 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
         "icon",
         "name",
         "cron",
+        "queue",
         "last_tick_",
         "last_run_due_",
         "last_run_task_",
     ]
     list_display_links = ["name"]
     ordering = ["last_tick"]
+    list_filter = ["name", ScheduleQueueListFilter, "state"]
 
     @admin.display(ordering="last_run__due")
     def last_run_due_(self, obj):

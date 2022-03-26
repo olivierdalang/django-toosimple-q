@@ -4,8 +4,7 @@ from django.db.models import Count
 from django.test import Client, TestCase
 
 from django_toosimple_q.models import ScheduleExec, TaskExec
-from django_toosimple_q.schedule import schedules_registry
-from django_toosimple_q.task import tasks_registry
+from django_toosimple_q.registry import schedules_registry, tasks_registry
 
 
 class TooSimpleQTestCase(TestCase):

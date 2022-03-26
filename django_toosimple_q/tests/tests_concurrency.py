@@ -26,7 +26,7 @@ COUNT = 32
 
 
 @unittest.skipIf(
-    os.environ["TOOSIMPLEQ_TEST_DB"] != "postgres", "requires postgres backend"
+    os.environ.get("TOOSIMPLEQ_TEST_DB") != "postgres", "requires postgres backend"
 )
 class ConcurrencyTest(TransactionTestCase):
     @classmethod
@@ -58,7 +58,7 @@ class ConcurrencyTest(TransactionTestCase):
 
     def test_tasks(self):
 
-        TaskExec.objects.create(task_name="create_user", queue="tasks")
+        TaskExec.objects.create(task_name="create_user")
 
         # Ensure the task really was just executed once
         self.assertEqual(User.objects.count(), 0)

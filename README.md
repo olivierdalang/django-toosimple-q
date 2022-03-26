@@ -333,6 +333,7 @@ $ pre-commit install
   - added `taskexec_kwarg` argument to `@register_task`, allowing to access the task execution instance from within the task
   - removed `datetime_kwarg` from `@register_schedule` (use `taskexec_kwarg` and the instance's `due` field instead)
   - added `queue` argument to `@register_schedule` (which allows pickup schedules selectively by worker)
+  - `priority` and `queue` are no longer fields in the database, but are used directly from the registry
 
 - 2022-03-24 : v0.4.0
   - made `last_check` and `last_run` optional in the admin
