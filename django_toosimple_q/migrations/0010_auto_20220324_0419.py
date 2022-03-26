@@ -85,13 +85,13 @@ class Migration(migrations.Migration):
             name="state",
             field=models.CharField(
                 choices=[
-                    ("QUEUED", "Queued"),
                     ("SLEEPING", "Sleeping"),
+                    ("QUEUED", "Queued"),
                     ("PROCESSING", "Processing"),
-                    ("FAILED", "Failed"),
                     ("SUCCEEDED", "Succeeded"),
-                    ("INVALID", "Invalid"),
                     ("INTERRUPTED", "Interrupted"),
+                    ("FAILED", "Failed"),
+                    ("INVALID", "Invalid"),
                 ],
                 default="QUEUED",
                 max_length=32,
