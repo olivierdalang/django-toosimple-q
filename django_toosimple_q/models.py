@@ -59,21 +59,21 @@ class TaskExec(models.Model):
     def priority(self):
         try:
             return tasks_registry[self.task_name].priority
-        except IndexError:
+        except KeyError:
             return None
 
     @property
     def queue(self):
         try:
             return tasks_registry[self.task_name].queue
-        except IndexError:
+        except KeyError:
             return None
 
     @property
     def unique(self):
         try:
             return tasks_registry[self.task_name].unique
-        except IndexError:
+        except KeyError:
             return None
 
     @property
@@ -121,21 +121,21 @@ class ScheduleExec(models.Model):
     def cron(self):
         try:
             return schedules_registry[self.name].cron
-        except IndexError:
+        except KeyError:
             return None
 
     @property
     def queue(self):
         try:
             return schedules_registry[self.name].queue
-        except IndexError:
+        except KeyError:
             return None
 
     @property
     def priority(self):
         try:
             return schedules_registry[self.name].priority
-        except IndexError:
+        except KeyError:
             return None
 
     @property
