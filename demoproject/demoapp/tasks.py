@@ -1,6 +1,7 @@
 import datetime
 import random
 import sys
+import time
 
 from django.utils import timezone
 
@@ -31,10 +32,25 @@ def logging():
     return "This is the result"
 
 
-@schedule_task(cron="* * * * *", queue="demo")
+@schedule_task(cron="* * * * *", queue="demo", catch_up=True)
 @register_task(name="task_instance", taskexec_kwarg="taskexec", queue="demo")
 def task_instance(taskexec):
     return f"{taskexec} was supposed to run at {taskexec.due} and actully started at {taskexec.started}"
+
+
+@schedule_task(cron="*/5 * * * *", queue="demo")
+@register_task(name="long_running", queue="demo")
+def long_running():
+    text = f"started at {timezone.now()}\n"
+    time.sleep(15)
+    text += f"continue at {timezone.now()}\n"
+    time.sleep(15)
+    text += f"continue at {timezone.now()}\n"
+    time.sleep(15)
+    text += f"continue at {timezone.now()}\n"
+    time.sleep(15)
+    text += f"finishing at {timezone.now()}\n"
+    return text
 
 
 @schedule_task(cron="*/5 * * * *", run_on_creation=True, queue="demo-cleanup")
