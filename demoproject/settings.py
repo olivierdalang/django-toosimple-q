@@ -36,10 +36,12 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
-    "django_toosimple_q.contrib.mail",
     "django_toosimple_q",
-    # Demo application
+    # for testing concurrency
+    "demoproject.concurrency",
+    # demo
     "demoproject.demoapp",
+    "django_toosimple_q.contrib.mail",
 ]
 
 SITE_ID = 1
