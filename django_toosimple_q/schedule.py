@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 from croniter import croniter, croniter_range
+from django.db import transaction
 from django.utils import timezone
 
 from django_toosimple_q.models import ScheduleExec
@@ -47,42 +48,43 @@ class Schedule:
         Returns True if at least one task was queued (so you can loop for testing).
         """
 
-        # retrieve the last execution
-        execution, created = ScheduleExec.objects.get_or_create(name=self.name)
+        with transaction.atomic():
+            # retrieve the last execution
+            schedule_exec, created = ScheduleExec.objects.get_or_create(name=self.name)
 
-        last_tick = execution.last_tick
+            did_something = False
 
-        # we update last_tick already to reduce race condition chance
-        execution.last_tick = timezone.now()
-        execution.status = ScheduleExec.States.ACTIVE
-        execution.save()
+            if created and self.run_on_creation:
+                # If the schedule is new, we run it now
+                next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
+            elif timezone.now() - schedule_exec.last_tick < timedelta(
+                seconds=tick_duration
+            ):
+                # If the last check was less than a tick ago (usually only happens when testing with until_done)
+                next_dues = []
+            else:
+                # Otherwise, we find all execution times since last check
+                next_dues = list(
+                    croniter_range(schedule_exec.last_tick, timezone.now(), self.cron)
+                )
+                # We keep only the last one if catchup wasn't specified
+                if not self.catch_up:
+                    next_dues = next_dues[-1:]
 
-        did_something = False
+            for next_due in next_dues:
 
-        if created and self.run_on_creation:
-            # If the schedule is new, we run it now
-            next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
-        elif timezone.now() - last_tick < timedelta(seconds=tick_duration):
-            # If the last check was less than a tick ago (usually only happens when testing with until_done)
-            next_dues = []
-        else:
-            # Otherwise, we find all execution times since last check
-            next_dues = list(croniter_range(last_tick, timezone.now(), self.cron))
-            # We keep only the last one if catchup wasn't specified
-            if not self.catch_up:
-                next_dues = next_dues[-1:]
+                logger.debug(f"Due : {self}")
 
-        for next_due in next_dues:
+                t = tasks_registry[self.name].enqueue(
+                    *self.args, due=next_due, **self.kwargs
+                )
+                if t:
+                    schedule_exec.last_run = t
 
-            logger.debug(f"Due : {self}")
+                did_something = True
 
-            t = tasks_registry[self.name].enqueue(
-                *self.args, due=next_due, **self.kwargs
-            )
-            if t:
-                execution.last_run = t
-                execution.save()
-
-            did_something = True
+            schedule_exec.last_tick = timezone.now()
+            schedule_exec.status = ScheduleExec.States.ACTIVE
+            schedule_exec.save()
 
         return did_something

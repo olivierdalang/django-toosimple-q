@@ -3,6 +3,7 @@ import signal
 import time
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import ugettext as _
 
@@ -122,17 +123,19 @@ class Command(BaseCommand):
             tasks_execs = tasks_execs.filter(queue__in=self.queues)
         if self.excluded_queues:
             tasks_execs = tasks_execs.exclude(queue__in=self.excluded_queues)
-        task_exec = tasks_execs.order_by("-priority", "created").first()
-        if task_exec:
-            # We ensure the task is in the registry
-            if task_exec.task_name in tasks_registry:
-                task = tasks_registry[task_exec.task_name]
-                did_something |= task.execute(task_exec)
-            else:
-                # If not, we set it as invalid
-                task_exec.state = TaskExec.States.INVALID
-                task_exec.save()
-                logger.warning(f"Found invalid task execution: {task_exec}")
-                did_something = True
+        tasks_execs = tasks_execs.select_for_update()
+        with transaction.atomic():
+            task_exec = tasks_execs.order_by("-priority", "created").first()
+            if task_exec:
+                # We ensure the task is in the registry
+                if task_exec.task_name in tasks_registry:
+                    task = tasks_registry[task_exec.task_name]
+                    did_something |= task.execute(task_exec)
+                else:
+                    # If not, we set it as invalid
+                    task_exec.state = TaskExec.States.INVALID
+                    task_exec.save()
+                    logger.warning(f"Found invalid task execution: {task_exec}")
+                    did_something = True
 
         return did_something
