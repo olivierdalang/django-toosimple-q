@@ -132,7 +132,6 @@ class Task:
             task_name=task_exec.task_name,
             args=task_exec.args,
             kwargs=task_exec.kwargs,
-            created=task_exec.created,  # TODO: remove
             retries=retries,
             retry_delay=delay,
             state=TaskExec.States.SLEEPING,
