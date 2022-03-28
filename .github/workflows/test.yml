@@ -5,11 +5,14 @@ on: [push]
 jobs:
   test:
 
-    name: Tests py${{ matrix.python-version }} / dj${{ matrix.django-version }} / ${{ matrix.db-backend }}
+    name: Tests py${{ matrix.python-version }} / dj${{ matrix.django-version }} / ${{ matrix.db-backend }} [${{ matrix.os }}]
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os:
+        - "ubuntu-latest"
+        - "windows-2019"
         python-version:
         - "3.8"
         - "3.9"
@@ -22,21 +25,11 @@ jobs:
         - "postgres"
       fail-fast: false
 
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
     - uses: actions/checkout@v1
+    - name: Install postgres
+      if: ${{ matrix.db-backend }} == 'postgres'
+      run: docker run -p 5432:5432 -e POSTGRES_PASSWORD=postgres --name postgres -d postgres
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
@@ -53,6 +46,9 @@ jobs:
       run: pip install -r requirements-dev.txt
     - name: Lint with pre-commit
       uses: pre-commit/action@v2.0.2
+    - name: Waiting for postgres
+      if: ${{ matrix.db-backend }} == 'postgres'
+      run: docker exec postgres pg_isready
     - name: Test
       env:
         TOOSIMPLEQ_TEST_DB: ${{ matrix.db-backend }}
