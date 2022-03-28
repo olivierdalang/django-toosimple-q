@@ -6,7 +6,6 @@ import sys
 import time
 
 from django.core.management.base import BaseCommand
-from django.db import transaction
 from django.db.models import Case, Value, When
 from django.utils import timezone
 from django.utils.translation import ugettext as _
@@ -142,7 +141,7 @@ class Command(BaseCommand):
         self.worker_status.save()
 
         logger.debug(f"Disabling orphaned schedules")
-        with transaction.atomic():
+        if True:
             count = (
                 ScheduleExec.objects.exclude(state=ScheduleExec.States.INVALID)
                 .exclude(name__in=schedules_registry.keys())
@@ -152,7 +151,7 @@ class Command(BaseCommand):
                 logger.warning(f"Found {count} invalid schedules")
 
         logger.debug(f"Disabling orphaned tasks")
-        with transaction.atomic():
+        if True:
             count = (
                 TaskExec.objects.exclude(state=TaskExec.States.INVALID)
                 .exclude(task_name__in=tasks_registry.keys())
@@ -186,8 +185,10 @@ class Command(BaseCommand):
         tasks_execs = TaskExec.objects.filter(state=TaskExec.States.QUEUED)
         tasks_execs = tasks_execs.filter(task_name__in=[t.name for t in tasks_to_check])
         tasks_execs = tasks_execs.order_by(order_by_priority_clause, "due", "created")
-        with transaction.atomic():
-            task_exec = tasks_execs.select_for_update().first()
+        if True:
+            # should help with race
+            # task_exec = tasks_execs.select_for_update()
+            task_exec = tasks_execs.first()
             if task_exec:
                 logger.debug(f"{task_exec} is due !")
                 task_exec.started = timezone.now()

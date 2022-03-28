@@ -105,4 +105,10 @@ class Migration(migrations.Migration):
             model_name="taskexec",
             name="queue",
         ),
+        # testing out race conditions
+        migrations.AlterField(
+            model_name="scheduleexec",
+            name="name",
+            field=models.CharField(max_length=1024),
+        ),
     ]

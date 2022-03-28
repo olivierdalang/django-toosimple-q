@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 from croniter import croniter, croniter_range
-from django.db import transaction
 from django.utils import timezone
 
 from django_toosimple_q.models import ScheduleExec
@@ -49,7 +48,7 @@ class Schedule:
         Returns True if at least one task was queued (so you can loop for testing).
         """
 
-        with transaction.atomic():
+        if True:
             # retrieve the last execution
             schedule_exec, created = ScheduleExec.objects.get_or_create(name=self.name)
 
