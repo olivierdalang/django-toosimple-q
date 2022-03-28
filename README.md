@@ -320,19 +320,21 @@ $ pre-commit install
 
 ## Changelog
 
-- 20xx-xx-xx : v1.0.0 **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
-  - improved dealing with concurrency using locking (tested with 32 concurrent workers)
-  - renamed `@schedule` -> `@schedule_task`
-  - renamed models (`Schedule` -> `ScheduleExec` and `Task` -> `TaskExec`)
-  - task name must now be provided as a kwarg (`@register_task("mytask")` -> `@register_task(name="mytask")`)
-  - schedules are no longer stored in the database, only their execution infomation is (which means that `--recreate-only` and `--no-recreate` arguments are removed)
-  - replaced last_check by run_on_creation argument in schedule_task decorator (`@schedule_task(..., last_chec=None)` -> `@schedule_task(..., run_on_creation=True)`)
-  - included a demo project showcasing some custom tasks setups
-  - updated compatibility to Django 3.2 and 4.0, and Python 3.8-3.10
-  - added `due` argument to `task.queue()`
-  - added `queue` argument to `@register_schedule` (which allows pickup schedules selectively by worker)
-  - `priority` and `queue` are no longer fields in the database, but are used directly from the registry
-  - added `WorkerStatus` model to monitor workers
+- 2022-03-28 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+  - feature: added workerstatus to the admin, allowing to monitor workers
+  - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
+  - feature: assign queues to schedules (`@register_schedule(queue="schedules")`)
+  - refactor: removed non-execution related data from the database (clarifying the fact tha the source of truth is the registry)
+  - refactor: better support for concurrent workers
+  - refactor: better names for models and decorators
+  - infra: included a demo project
+  - infra: improved testing, including for concurrency behaviour
+  - infra: updated compatibility to Django 3.2/4.0 and Python 3.8-3.18
+  - quick migration guide:
+    - rename `@schedule` -> `@schedule_task`
+    - task name must now be provided as a kwarg: `@register_task("mytask")` -> `@register_task(name="mytask")`)
+    - replace `@schedule_task(..., last_check=None)` -> `@schedule_task(..., run_on_creation=True)`
+    - models: `Schedule` -> `ScheduleExec` and `Task` -> `TaskExec`
 
 - 2022-03-24 : v0.4.0
   - made `last_check` and `last_run` optional in the admin
