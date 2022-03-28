@@ -1,8 +1,10 @@
 from django.contrib import admin
 from django.contrib.messages.constants import SUCCESS
 from django.template.defaultfilters import truncatechars
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
 from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -54,20 +56,19 @@ class TaskExecAdmin(ReadOnlyAdmin):
         "icon",
         "task_name",
         "arguments_",
-        "queue_",
-        "priority_",
         "due_",
         "created_",
         "started_",
         "finished_",
         "replaced_by_",
         "result_",
+        "task_",
     ]
     list_display_links = ["task_name"]
     list_filter = ["task_name", TaskQueueListFilter, "state"]
     actions = ["action_requeue"]
     ordering = ["-created"]
-    readonly_fields = ["queue_", "priority_", "result"]
+    readonly_fields = ["task_", "result"]
 
     def arguments_(self, obj):
         return format_html(
@@ -99,24 +100,18 @@ class TaskExecAdmin(ReadOnlyAdmin):
         if obj.replaced_by:
             return f"{obj.replaced_by.icon} [{obj.replaced_by.pk}]"
 
-    def queue_(self, obj):
+    def task_(self, obj):
         if not obj.task:
             return None
-        return obj.task.queue
+        return render_to_string("toosimpleq/task.html", {"task": obj.task})
 
-    def priority_(self, obj):
-        if not obj.task:
-            return None
-        return obj.task.priority
-
+    @admin.display(description="Requeue task")
     def action_requeue(self, request, queryset):
         for task in queryset:
             tasks_registry[task.task_name].enqueue(*task.args, **task.kwargs)
         self.message_user(
-            request, f"{queryset.count()} tasks successfully requeued...", level=SUCCESS
+            request, f"{queryset.count()} tasks successfully requeued", level=SUCCESS
         )
-
-    action_requeue.short_description = "Requeue task"
 
 
 @admin.register(ScheduleExec)
@@ -124,36 +119,21 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     list_display = [
         "icon",
         "name",
-        "cron_",
-        "arguments_",
-        "queue_",
         "last_tick_",
         "last_run_due_",
         "last_run_task_",
+        "schedule_",
     ]
     list_display_links = ["name"]
     ordering = ["last_tick"]
     list_filter = ["name", ScheduleQueueListFilter, "state"]
-    readonly_fields = ["cron_", "arguments_", "queue_", "last_run_due_"]
+    actions = ["action_force_run"]
+    readonly_fields = ["schedule_", "last_run_due_"]
 
-    def cron_(self, obj):
+    def schedule_(self, obj):
         if not obj.schedule:
             return None
-        return obj.schedule.cron
-
-    def queue_(self, obj):
-        if not obj.schedule:
-            return None
-        return obj.schedule.queue
-
-    def arguments_(self, obj):
-        if not obj.schedule:
-            return None
-        return format_html(
-            "{}<br/>{}",
-            truncatechars(str(obj.schedule.args), 32),
-            truncatechars(str(obj.schedule.kwargs), 32),
-        )
+        return render_to_string("toosimpleq/schedule.html", {"schedule": obj.schedule})
 
     @admin.display(ordering="last_run__due")
     def last_run_due_(self, obj):
@@ -171,6 +151,16 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     @admin.display(ordering="last_tick")
     def last_tick_(self, obj):
         return short_naturaltime(obj.last_tick)
+
+    @admin.display(description="Force run schedule")
+    def action_force_run(self, request, queryset):
+        for schedule_exec in queryset:
+            schedule = schedule_exec.schedule.execute(force=True)
+        self.message_user(
+            request,
+            f"{queryset.count()} schedules successfully executed",
+            level=SUCCESS,
+        )
 
 
 @admin.register(WorkerStatus)
@@ -225,5 +215,5 @@ def short_naturaltime(datetime):
         last_v = threshold
 
     shorttime = f"in&nbsp;{text}" if delta.seconds < 0 else f"{text}&nbsp;ago"
-
-    return mark_safe(f'<span title="{escape(datetime)}">{shorttime}</span>')
+    longtime = date_format(datetime, format="DATETIME_FORMAT", use_l10n=True)
+    return mark_safe(f'<span title="{escape(longtime)}">{shorttime}</span>')

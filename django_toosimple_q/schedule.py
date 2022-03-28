@@ -37,7 +37,7 @@ class Schedule:
         self.catch_up = catch_up
         self.run_on_creation = run_on_creation
 
-    def execute(self, tick_duration):
+    def execute(self, tick_duration=0, force=False):
         """Execute the schedule, which creates a new task if a new run is required
         since last check.
 
@@ -57,7 +57,9 @@ class Schedule:
 
             did_something = False
 
-            if created and self.run_on_creation:
+            if force:
+                next_dues = [None]
+            elif created and self.run_on_creation:
                 # If the schedule is new, we run it now
                 next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
             elif timezone.now() - schedule_exec.last_tick < timedelta(
