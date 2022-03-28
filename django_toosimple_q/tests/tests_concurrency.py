@@ -71,7 +71,7 @@ class ConcurrencyTest(TransactionTestCase):
 
     def test_task_processing_state(self):
 
-        t = sleep_task.queue(duration=4)
+        t = sleep_task.queue(duration=10)
 
         # Check that the task correctly queued
         t.refresh_from_db()
@@ -81,15 +81,14 @@ class ConcurrencyTest(TransactionTestCase):
         popen = sys_call(self.make_command(queue="tasks"), sync=False)
 
         # Check that it is now processing
-        time.sleep(3)
+        time.sleep(5)
         t.refresh_from_db()
         self.assertEqual(t.state, TaskExec.States.PROCESSING)
 
         # Wait for the background process to finish
-        popen.wait(timeout=5)
+        popen.communicate(timeout=15)
 
         # Check that it correctly succeeds
-        time.sleep(1)
         t.refresh_from_db()
         self.assertEqual(t.state, TaskExec.States.SUCCEEDED)
 
@@ -106,7 +105,7 @@ class ConcurrencyTest(TransactionTestCase):
         popen = sys_call(self.make_command(queue="tasks"), sync=False)
 
         # Check that it is now processing
-        time.sleep(3)
+        time.sleep(5)
         t.refresh_from_db()
         self.assertEqual(t.state, TaskExec.States.PROCESSING)
 
@@ -115,7 +114,7 @@ class ConcurrencyTest(TransactionTestCase):
             popen.send_signal(signal.CTRL_C_EVENT)
         else:
             popen.send_signal(signal.SIGTERM)
-        popen.communicate(timeout=5)
+        popen.communicate(timeout=15)
 
         # Check that the state is correctly set to interrupted and that a replacing task was added
         t.refresh_from_db()
