@@ -78,55 +78,79 @@ class TestTasks(TooSimpleQTestCase):
         management.call_command("worker", "--once")
         self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
 
-    def test_task_queuing(self):
+    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
+    def test_task_queuing(self, frozen_datetime):
         """Checking task queuing"""
 
         @register_task(name="a")
         def a(x):
             return x * 2
 
-        a.queue(1)
+        t1 = a.queue(1)
+        t2 = a.queue(2)
+        t3 = a.queue(3, due=timezone.make_aware(datetime.datetime(2020, 1, 1, 2)))
+        t4 = a.queue(4, due=timezone.make_aware(datetime.datetime(2020, 1, 1, 1)))
+        self.assertEqual(t1.state, TaskExec.States.QUEUED)
+        self.assertEqual(t2.state, TaskExec.States.QUEUED)
+        self.assertEqual(t3.state, TaskExec.States.SLEEPING)
+        self.assertEqual(t4.state, TaskExec.States.SLEEPING)
+        self.assertQueue(4)
 
-        self.assertQueue(1, state=TaskExec.States.QUEUED)
-        self.assertQueue(0, state=TaskExec.States.SUCCEEDED)
-        self.assertQueue(1)
-
-        a.queue(2)
-
-        self.assertQueue(2, state=TaskExec.States.QUEUED)
-        self.assertQueue(0, state=TaskExec.States.SUCCEEDED)
-        self.assertQueue(2)
-
-        t = a.queue(3)
-        t.state = TaskExec.States.SLEEPING
-        t.due = timezone.now() + datetime.timedelta(hours=1)
-        t.save()
-
-        self.assertQueue(1, state=TaskExec.States.SLEEPING)
-        self.assertQueue(2, state=TaskExec.States.QUEUED)
-        self.assertQueue(0, state=TaskExec.States.SUCCEEDED)
-        self.assertQueue(3)
-
+        # Run a due task
         management.call_command("worker", "--once")
+        t1.refresh_from_db()
+        t2.refresh_from_db()
+        t3.refresh_from_db()
+        t4.refresh_from_db()
+        self.assertEqual(t1.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t2.state, TaskExec.States.QUEUED)
+        self.assertEqual(t3.state, TaskExec.States.SLEEPING)
+        self.assertEqual(t4.state, TaskExec.States.SLEEPING)
 
-        self.assertQueue(1, state=TaskExec.States.SLEEPING)
-        self.assertQueue(1, state=TaskExec.States.QUEUED)
-        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
-        self.assertQueue(3)
-
+        # Run a due task
         management.call_command("worker", "--once")
+        t1.refresh_from_db()
+        t2.refresh_from_db()
+        t3.refresh_from_db()
+        t4.refresh_from_db()
+        self.assertEqual(t1.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t2.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t3.state, TaskExec.States.SLEEPING)
+        self.assertEqual(t4.state, TaskExec.States.SLEEPING)
 
-        self.assertQueue(1, state=TaskExec.States.SLEEPING)
-        self.assertQueue(0, state=TaskExec.States.QUEUED)
-        self.assertQueue(2, state=TaskExec.States.SUCCEEDED)
-        self.assertQueue(3)
-
+        # All currently due tasks have been run, nothing happens
         management.call_command("worker", "--once")
+        t1.refresh_from_db()
+        t2.refresh_from_db()
+        t3.refresh_from_db()
+        t4.refresh_from_db()
+        self.assertEqual(t1.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t2.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t3.state, TaskExec.States.SLEEPING)
+        self.assertEqual(t4.state, TaskExec.States.SLEEPING)
 
-        self.assertQueue(1, state=TaskExec.States.SLEEPING)
-        self.assertQueue(0, state=TaskExec.States.QUEUED)
-        self.assertQueue(2, state=TaskExec.States.SUCCEEDED)
-        self.assertQueue(3)
+        # We move to the future, due tasks are now queued, and the first due one is run
+        frozen_datetime.move_to(datetime.datetime(2020, 1, 1, 5))
+        management.call_command("worker", "--once")
+        t1.refresh_from_db()
+        t2.refresh_from_db()
+        t3.refresh_from_db()
+        t4.refresh_from_db()
+        self.assertEqual(t1.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t2.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t3.state, TaskExec.States.QUEUED)
+        self.assertEqual(t4.state, TaskExec.States.SUCCEEDED)
+
+        # Now the last one is run too
+        management.call_command("worker", "--once")
+        t1.refresh_from_db()
+        t2.refresh_from_db()
+        t3.refresh_from_db()
+        t4.refresh_from_db()
+        self.assertEqual(t1.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t2.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t3.state, TaskExec.States.SUCCEEDED)
+        self.assertEqual(t4.state, TaskExec.States.SUCCEEDED)
 
     def test_task_queuing_with_priorities(self):
         """Checking task queuing with priorities"""

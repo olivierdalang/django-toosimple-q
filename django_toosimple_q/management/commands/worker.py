@@ -142,7 +142,7 @@ class Command(BaseCommand):
         tasks_to_check = tasks_registry.for_queue(self.queues, self.excluded_queues)
         tasks_execs = TaskExec.objects.filter(state=TaskExec.States.QUEUED)
         tasks_execs = tasks_execs.filter(task_name__in=[t.name for t in tasks_to_check])
-        tasks_execs = tasks_execs.order_by(order_clause, "created")
+        tasks_execs = tasks_execs.order_by(order_clause, "due", "created")
         with transaction.atomic():
             task_exec = tasks_execs.select_for_update().first()
             if task_exec:
