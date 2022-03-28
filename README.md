@@ -64,7 +64,7 @@ Registered tasks can be scheduled from code using this cron-like syntax :
 from django_toosimple_q.decorators import register_task, schedule
 
 # Register and schedule tasks
-@schedule(cron="30 8 * * *", args=['John'])
+@schedule_task(cron="30 8 * * *", args=['John'])
 @register_task()
 def morning_routine(name):
     return f"Good morning {name} !"
