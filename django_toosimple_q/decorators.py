@@ -1,72 +1,59 @@
 from django.core.exceptions import ImproperlyConfigured
-from django.utils import timezone
 
-from .registry import schedules, tasks
+from .registry import schedules_registry, tasks_registry
+from .schedule import Schedule
+from .task import Task
 
 
-def register_task(
-    name=None, queue="default", priority=0, unique=False, retries=0, retry_delay=0
-):
-    """Attaches ._task_name attribute, the .queue() method and adds the callable to the tasks registry"""
+def register_task(**kwargs):
+    """Attaches ._task attribute, the .queue() method and adds the callable to the tasks registry"""
 
     def inner(func):
-        if name:
-            func._task_name = name
-        else:
-            func._task_name = func.__globals__["__name__"] + "." + func.__qualname__
+        # Default name is the qualified function name
+        if "name" not in kwargs:
+            kwargs["name"] = func.__globals__["__name__"] + "." + func.__qualname__
 
-        def enqueue(*args_, **kwargs_):
-            from .models import Task
+        # Create the task instance
+        kwargs["callable"] = func
+        task = Task(**kwargs)
 
-            if unique:
-                existing_tasks = Task.objects.filter(
-                    function=func._task_name,
-                    args=args_,
-                    kwargs=kwargs_,
-                    queue=queue,
-                )
-                # If already queued, we don't do anything
-                queued_task = existing_tasks.filter(state=Task.QUEUED).first()
-                if queued_task is not None:
-                    return False
-                # If there's a sleeping task, we set it's due date to now
-                sleeping_task = existing_tasks.filter(state=Task.SLEEPING).first()
-                if sleeping_task is not None:
-                    sleeping_task.due = timezone.now()
-                    sleeping_task.state = Task.QUEUED
-                    sleeping_task.save()
-                    return False
+        # Attach that instance to the callable
+        func._task = task
 
-            return Task.objects.create(
-                function=func._task_name,
-                args=args_,
-                kwargs=kwargs_,
-                queue=queue,
-                priority=priority,
-                retries=retries,
-                retry_delay=retry_delay,
-            )
+        # Include the `queue` callable
+        func.queue = task.enqueue
 
-        func.queue = enqueue
-        tasks[func._task_name] = func
+        # Add to the registry
+        tasks_registry[task.name] = task
+
+        # Decorator returns the function itself
         return func
 
     return inner
 
 
-def schedule(**kwargs):
+def schedule_task(**kwargs):
     """Adds the task to the schedules registry"""
 
     def inner(func):
-        if not hasattr(func, "_task_name"):
+        if not hasattr(func, "_task"):
             raise ImproperlyConfigured(
                 "Only registered tasks can be scheduled."
                 " Are you sure you registered your callable with the @register_task() decorator ?"
             )
-        schedule_name = kwargs.get("name", func._task_name)
-        kwargs["name"] = schedule_name
-        kwargs["function"] = func._task_name
-        schedules[schedule_name] = kwargs
+
+        # Default name is the name of the task
+        if "name" not in kwargs:
+            kwargs["name"] = func._task.name
+
+        # Create the schedule instance
+        kwargs["task"] = func._task
+        schedule = Schedule(**kwargs)
+
+        # Add to the registry
+        schedules_registry[kwargs["name"]] = schedule
+
+        # Decorator returns the function itself
         return func
 
     return inner

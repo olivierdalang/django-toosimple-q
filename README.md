@@ -4,9 +4,7 @@
 
 This packages provides a simplistic task queue and scheduler for Django.
 
-If execution of your tasks is mission critical, do not use this library, and turn to more complex solutions such as Celery, as this package doesn't guarantee task execution nor unique execution.
-
-It is geared towards basic apps, where simplicity primes over reliability. The package offers simple decorator syntax, including cron-like schedules.
+It is geared towards basic apps, where simplicity primes. The package offers simple decorator syntax, including cron-like schedules.
 
 Features :
 
@@ -16,11 +14,17 @@ Features :
 - cron-like scheduling
 - tasks.py autodiscovery
 - django admin integration
+- tasks results stored using the Django ORM
 
 Limitations :
 
-- probably not extremely reliable because of race conditions
 - no multithreading yet (but running multiple workers should work)
+- not well suited for projects spawning a high volume of tasks
+
+Compatibility:
+
+- Django 3.2 and 4.0
+- Python 3.8, 3.9, 3.10
 
 ## Installation
 
@@ -80,7 +84,7 @@ The package autoloads `tasks.py` from all installed apps. While this is the reco
 
 You can optionnaly give a custom name to your tasks. This is required when your task is defined in a local scope.
 ```python
-@register_task("my_favourite_task")
+@register_task(name="my_favourite_task")
 def my_task(name):
     return f"Good morning {name} !"
 ```
@@ -137,12 +141,22 @@ def short_task():
 # manage.py worker
 ```
 
+You can enqueue tasks with a specific due date.
+```python
+@register_task()
+def my_task(name):
+    return f"Hello {name} !"
+
+# Enqueue tasks
+my_task.queue("John", due=timezone.now() + timedelta(hours=1))
+```
+
 ### Schedules
 
-By default, `last_check` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `last_check=None`.
+By default, `last_tick` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
 
 ```python
-@schedule(cron="30 8 * * *", last_check=None)
+@schedule_task(cron="30 8 * * *", run_on_creation=True)
 @register_task()
 def my_task(name):
     return f"Good morning {name} !"
@@ -151,7 +165,7 @@ def my_task(name):
 By default, if some crons where missed (e.g. after a server shutdown or if the workers can't keep up with all tasks), the missed tasks will be lost. If you need the tasks to catch up, set `catch_up=True`.
 
 ```python
-@schedule(cron="30 8 * * *", catch_up=True)
+@schedule_task(cron="30 8 * * *", catch_up=True)
 @register_task()
 def my_task(name):
     ...
@@ -160,8 +174,8 @@ def my_task(name):
 You may define multiple schedules for the same task. In this case, it is mandatory to specify a unique name :
 
 ```python
-@schedule(name="morning_routine", cron="30 16 * * *", args=['morning'])
-@schedule(name="afternoon_routine", cron="30 8 * * *", args=['afternoon'])
+@schedule_task(name="morning_routine", cron="30 16 * * *", args=['morning'])
+@schedule_task(name="afternoon_routine", cron="30 8 * * *", args=['afternoon'])
 @register_task()
 def my_task(time):
     return f"Good {time} John !"
@@ -170,12 +184,25 @@ def my_task(time):
 You may get the schedule's cron datetime provided as a keyword argument to the task using the `datetime_kwarg` argument :
 
 ```python
-@schedule(cron="30 8 * * *", datetime_kwarg="scheduled_on")
+@schedule_task(cron="30 8 * * *", datetime_kwarg="scheduled_on")
 @register_task()
 def my_task(scheduled_on):
     return f"This was scheduled for {scheduled_on.isoformat()}."
 ```
 
+Similarly to tasks, you can assign schedules to specific queues, and then have your worker only consume tasks from specific queues using `--queue myqueue` or `--exclude_queue myqueue`.
+
+```python
+
+@register_schedule(queue='scheduler')
+@register_task(queue='worker')
+def task():
+    ...
+
+# Then run those with these workers
+# manage.py worker --queue scheduler
+# manage.py worker --queue worker
+```
 
 ### Management comment
 
@@ -185,7 +212,8 @@ Besides standard django management commands arguments, the management command su
 usage: manage.py worker [--queue QUEUE | --exclude_queue EXCLUDE_QUEUE]
                         [--tick TICK]
                         [--once | --until_done]
-                        [--no_recreate | --recreate_only]
+                        [--label LABEL]
+                        [--timeout TIMEOUT]
 
 optional arguments:
   --queue QUEUE         which queue to run (can be used several times, all
@@ -198,11 +226,25 @@ optional arguments:
   --once                run once then exit (useful for debugging)
   --until_done          run until no tasks are available then exit (useful for
                         debugging)
-  --no_recreate         do not (re)populate the schedule table (useful for
-                        debugging)
-  --recreate_only       populates the schedule table then exit (useful for
-                        debugging)
+  --label LABEL         the name of the worker to help identifying it ('{pid}'
+                        will be replaced by the process id)
+  --timeout TIMEOUT     the time in seconds after which this worker will be considered
+                        offline (set this to a value higher than the longest tasks this
+                        worker will execute)
 ```
+
+## Demo project
+
+A demo project with pre-configured tasks is provided.
+
+```
+python demoproject/manage.py migrate
+python demoproject/manage.py createsuperuser
+python demoproject/manage.py runserver
+python demoproject/manage.py worker  # from a different shell
+```
+
+Then open http://127.0.0.1:8000/admin in your browser
 
 ## Contrib apps
 
@@ -249,6 +291,7 @@ $ export TOOSIMPLEQ_TEST_DB=postgres # on Windows: `$Env:TOOSIMPLEQ_TEST_DB = "p
 Tests are run automatically on github.
 
 
+
 ### Contribute
 
 Code style is done with pre-commit :
@@ -257,8 +300,41 @@ $ pip install -r requirements-dev.txt
 $ pre-commit install
 ```
 
+
+## Internals
+
+### Terms
+
+**Task**: a callable with a known name in the *registry*. These are typically registered in `tasks.py`.
+
+**TaskExecution**: a specific planned or past call of a *task*, including inputs (arguments) and outputs. This is a model, whose instanced are typically created using `mycallable.queue()` or from schedules.
+
+**Schedule**: a configuration for repeated execution of *tasks*. These are typically configured in `tasks.py`.
+
+**ScheduleExecution**: the last execution of a *schedule* (e.g. keeps track of the last time a schedule actually lead to generate a task execution).  This is a model, whose instances are created by the worker.
+
+**Registry**: a dictionary keeping all registered schedules and tasks.
+
+**Worker**: a management command that executes schedules and tasks on a regular basis.
+
+
 ## Changelog
 
+- 2022-03-28 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+  - feature: added workerstatus to the admin, allowing to monitor workers
+  - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
+  - feature: assign queues to schedules (`@register_schedule(queue="schedules")`)
+  - refactor: removed non-execution related data from the database (clarifying the fact tha the source of truth is the registry)
+  - refactor: better support for concurrent workers
+  - refactor: better names for models and decorators
+  - infra: included a demo project
+  - infra: improved testing, including for concurrency behaviour
+  - infra: updated compatibility to Django 3.2/4.0 and Python 3.8-3.18
+  - quick migration guide:
+    - rename `@schedule` -> `@schedule_task`
+    - task name must now be provided as a kwarg: `@register_task("mytask")` -> `@register_task(name="mytask")`)
+    - replace `@schedule_task(..., last_check=None)` -> `@schedule_task(..., run_on_creation=True)`
+    - models: `Schedule` -> `ScheduleExec` and `Task` -> `TaskExec`
 
 - 2022-03-24 : v0.4.0
   - made `last_check` and `last_run` optional in the admin

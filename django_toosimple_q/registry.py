@@ -1,22 +1,12 @@
-from .logging import logger
+class Registry(dict):
+    def for_queue(self, queues=None, excluded_queues=None):
+        for item in self.values():
+            if queues and item.queue not in queues:
+                continue
+            if excluded_queues and item.queue in excluded_queues:
+                continue
+            yield item
 
-tasks = {}
-schedules = {}
 
-
-def dump_registry():
-    """
-    Logs the state of the registry for debugging purposes
-    """
-
-    if len(schedules):
-        schedules_names = ", ".join(schedules.keys())
-        logger.info(f"Registry contains {len(schedules)} schedules : {schedules_names}")
-    else:
-        logger.info("Registry contains no schedules")
-
-    if len(tasks):
-        tasks_names = ", ".join(tasks.keys())
-        logger.info(f"Registry contains {len(tasks)} tasks : {tasks_names}")
-    else:
-        logger.info("Registry contains no schedules")
+schedules_registry = Registry()
+tasks_registry = Registry()

@@ -1,16 +1,19 @@
+import importlib
+
 from django.core import mail, management
-from django.core.mail import send_mail
-from django.test import TestCase
+from django.core.mail import send_mail, send_mass_mail
 from django.test.utils import override_settings
 
-from django_toosimple_q.models import Task
+from ...models import TaskExec
+from ...tests.base import TooSimpleQRegularTestCase
+from . import tasks as mail_tasks
 
-from .utils import QueueAssertionMixin
 
-
-class TestMail(QueueAssertionMixin, TestCase):
+class TestMail(TooSimpleQRegularTestCase):
     def setUp(self):
-        mail.outbox.clear()
+        super().setUp()
+        # Reload the tasks modules to repopulate the registries (emulates auto-discovery)
+        importlib.reload(mail_tasks)
 
     @override_settings(
         EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",
@@ -27,13 +30,13 @@ class TestMail(QueueAssertionMixin, TestCase):
             ["to@example.com"],
         )
 
-        self.assertQueue(1, state=Task.QUEUED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(1, state=Task.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 1)
 
@@ -58,13 +61,13 @@ class TestMail(QueueAssertionMixin, TestCase):
             ["to@example.com"],
         )
 
-        self.assertQueue(2, state=Task.QUEUED)
+        self.assertQueue(2, state=TaskExec.States.QUEUED)
         self.assertQueue(2)
         self.assertEquals(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(2, state=Task.SUCCEEDED)
+        self.assertQueue(2, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(2)
         self.assertEquals(len(mail.outbox), 2)
 
@@ -89,21 +92,47 @@ class TestMail(QueueAssertionMixin, TestCase):
             ["to@example.com"],
         )
 
-        self.assertQueue(1, state=Task.QUEUED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(1, state=Task.SUCCEEDED)
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 1)
 
     @override_settings(
         EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",
+        TOOSIMPLEQ_EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    )
+    def test_queue_mass_mail(self):
+
+        self.assertQueue(0)
+
+        send_mass_mail(
+            [
+                ("Subject A", "Message.", "from@example.com", ["to@example.com"]),
+                ("Subject B", "Message.", "from@example.com", ["to@example.com"]),
+                ("Subject C", "Message.", "from@example.com", ["to@example.com"]),
+            ]
+        )
+
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
+        self.assertQueue(1)
+        self.assertEquals(len(mail.outbox), 0)
+
+        management.call_command("worker", "--until_done")
+
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(1)
+        self.assertEquals(len(mail.outbox), 3)
+
+    @override_settings(
+        EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",
         TOOSIMPLEQ_EMAIL_BACKEND="failing_backend",
     )
-    def test_queue_mail(self):
+    def test_queue_mail_failing_backend(self):
 
         self.assertQueue(0)
 
@@ -114,13 +143,13 @@ class TestMail(QueueAssertionMixin, TestCase):
             ["to@example.com"],
         )
 
-        self.assertQueue(1, state=Task.QUEUED)
+        self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
         self.assertEquals(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
-        self.assertQueue(1, state=Task.FAILED, replaced=True)
-        self.assertQueue(1, state=Task.SLEEPING)
+        self.assertQueue(1, state=TaskExec.States.FAILED, replaced=True)
+        self.assertQueue(1, state=TaskExec.States.SLEEPING)
         self.assertQueue(2)
         self.assertEquals(len(mail.outbox), 0)

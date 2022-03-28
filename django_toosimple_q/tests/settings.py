@@ -1,13 +1,16 @@
-import os
+"""Settings for running tests"""
+
+"""Settings overrides for testing concurrent workers"""
+
+from .utils import is_postgres
 
 DEBUG = True
 USE_TZ = True
+TIME_ZONE = "UTC"
+SECRET_KEY = "secret_key"
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "_ijq6*+k4!wxrkh8=ps%-qz(f-0m-q)f5qemnc5cck7usceg5j"
 
-backend = os.getenv("TOOSIMPLEQ_TEST_DB", "sqlite")
-if backend == "postgres":
+if is_postgres():
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -16,31 +19,35 @@ if backend == "postgres":
             "NAME": "postgres",
             "USER": "postgres",
             "PASSWORD": "postgres",
+            "TEST": {
+                "NAME": "test_postgres",
+            },
         }
     }
-elif backend == "sqlite":
+else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
+            "NAME": "db.sqlite3",
+            "OPTIONS": {"timeout": 50},
+            "TEST": {
+                "NAME": "db-test.sqlite3",
+            },
         }
     }
-
-ROOT_URLCONF = "tests.urls"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
-    "django.contrib.sites",
     "django.contrib.messages",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
-    "django_toosimple_q.contrib.mail",
     "django_toosimple_q",
+    "django_toosimple_q.tests.concurrency",
 ]
 
-SITE_ID = 1
+ROOT_URLCONF = "django_toosimple_q.tests.urls"
 
 MIDDLEWARE = (
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -61,7 +68,5 @@ TEMPLATES = [
         },
     }
 ]
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 STATIC_URL = "/static/"

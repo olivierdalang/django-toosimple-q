@@ -1,9 +1,10 @@
 # tests
-freezegun==1.1.0
-psycopg2>=2.8,<2.9
+freezegun==1.2.1
+psycopg2==2.*
 
 # devenv
 pre-commit
+mypy
 
-# app deps
--r requirements.txt
+# django-toosimple-q
+-e .

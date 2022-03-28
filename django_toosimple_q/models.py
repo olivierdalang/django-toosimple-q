@@ -1,42 +1,54 @@
-import contextlib
-import io
-import traceback
-from datetime import datetime, timedelta
+import datetime
 
-from croniter import croniter, croniter_range
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from picklefield.fields import PickledObjectField
 
-from .logging import logger
-from .registry import tasks
+from .registry import schedules_registry, tasks_registry
 
 
-class Task(models.Model):
-    QUEUED = "QUEUED"
-    SLEEPING = "SLEEPING"
-    PROCESSING = "PROCESSING"
-    FAILED = "FAILED"
-    SUCCEEDED = "SUCCEEDED"
-    INVALID = "INVALID"
-    INTERRUPTED = "INTERRUPTED"
+class TaskExec(models.Model):
+    """TaskExecution represent a specific planned or past call of a task, including inputs (arguments) and outputs.
 
-    state_choices = (
-        (QUEUED, "QUEUED"),
-        (SLEEPING, "SLEEPING"),
-        (PROCESSING, "PROCESSING"),
-        (FAILED, "FAILED"),
-        (SUCCEEDED, "SUCCEEDED"),
-        (INVALID, "INVALID"),
-        (INTERRUPTED, "INTERRUPTED"),
-    )
+    This is a model, whose instanced are typically created using `mycallable.queue()` or from schedules.
+    """
+
+    class Meta:
+        verbose_name = "Task Execution"
+
+    class States(models.TextChoices):
+        SLEEPING = "SLEEPING", _("Sleeping")
+        QUEUED = "QUEUED", _("Queued")
+        PROCESSING = "PROCESSING", _("Processing")
+        SUCCEEDED = "SUCCEEDED", _("Succeeded")
+        INTERRUPTED = "INTERRUPTED", _("Interrupted")
+        FAILED = "FAILED", _("Failed")
+        INVALID = "INVALID", _("Invalid")
+
+        @classmethod
+        def icon(cls, state):
+            if state == cls.SLEEPING:
+                return "💤"
+            elif state == cls.QUEUED:
+                return "⌚"
+            elif state == cls.PROCESSING:
+                return "🚧"
+            elif state == cls.SUCCEEDED:
+                return "✔️"
+            elif state == cls.FAILED:
+                return "❌"
+            elif state == cls.INTERRUPTED:
+                return "🛑"
+            elif state == cls.INVALID:
+                return "⚠️"
+            else:
+                return "❓"
 
     id = models.BigAutoField(primary_key=True)
-    function = models.CharField(max_length=1024)
+    task_name = models.CharField(max_length=1024)
     args = PickledObjectField(blank=True, default=list)
     kwargs = PickledObjectField(blank=True, default=dict)
-    queue = models.CharField(max_length=32, default="default")
-    priority = models.IntegerField(default=0)
     retries = models.IntegerField(
         default=0, help_text="retries left, -1 means infinite"
     )
@@ -49,186 +61,125 @@ class Task(models.Model):
     created = models.DateTimeField(default=timezone.now)
     started = models.DateTimeField(blank=True, null=True)
     finished = models.DateTimeField(blank=True, null=True)
-    state = models.CharField(max_length=32, choices=state_choices, default=QUEUED)
+    state = models.CharField(
+        max_length=32, choices=States.choices, default=States.QUEUED
+    )
     result = PickledObjectField(blank=True, null=True)
+    error = models.TextField(blank=True, null=True)
     replaced_by = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    worker = models.ForeignKey(
+        "WorkerStatus", null=True, blank=True, on_delete=models.SET_NULL
     )
 
     stdout = models.TextField(blank=True, default="")
     stderr = models.TextField(blank=True, default="")
 
     def __str__(self):
-        return f"Task {self.function} {self.icon}"
+        return f"Task '{self.task_name}' {self.icon} [{self.id}]"
+
+    @property
+    def task(self):
+        """The corresponding task instance, or None if it's not in the registry"""
+        try:
+            return tasks_registry[self.task_name]
+        except KeyError:
+            return None
 
     @property
     def icon(self):
-        if self.state == Task.SLEEPING:
-            return "💤"
-        elif self.state == Task.QUEUED:
-            return "⌚"
-        elif self.state == Task.PROCESSING:
-            return "🚧"
-        elif self.state == Task.SUCCEEDED:
-            return "✔️"
-        elif self.state == Task.FAILED:
-            return "❌"
-        elif self.state == Task.INTERRUPTED:
-            return "🛑"
-        elif self.state == Task.INVALID:
-            return "⭕️"
-        else:
-            return "❓"
-
-    def execute(self):
-        """Execute the task.
-
-        A check is done to make sure the task is still queued.
-
-        Returns True if at the task was executed, whether it failed or succeeded (so you can loop for testing).
-        """
-
-        self.refresh_from_db()
-        if self.state != Task.QUEUED and not (
-            self.state == Task.SLEEPING and timezone.now() >= self.due
-        ):
-            # this task was executed from another worker in the mean time
-            return True
-
-        if self.function not in tasks.keys():
-            # this task is not in the registry
-            self.state = Task.INVALID
-            self.save()
-            logger.warning(f"{self} not found in registry [{list(tasks.keys())}]")
-            return True
-
-        logger.debug(f"Executing : {self}")
-
-        self.started = timezone.now()
-        self.state = Task.PROCESSING
-        self.save()
-
-        try:
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-
-            callable = tasks[self.function]
-
-            # TODO : if callable is a string, load the callable using this pseudocode:
-            # if is_string(callable):
-            #     mod, call = self.function.rsplit(".", 1)
-            #     callable = getattr(import_module(mod), call)
-
-            try:
-                with contextlib.redirect_stderr(stderr):
-                    with contextlib.redirect_stdout(stdout):
-                        self.result = callable(*self.args, **self.kwargs)
-                self.state = Task.SUCCEEDED
-            except Exception:
-                logger.warning(f"{self} failed !")
-                self.state = Task.FAILED
-                self.result = traceback.format_exc()
-                if self.retries != 0:
-                    self.create_replacement(is_retry=True)
-            finally:
-                self.finished = timezone.now()
-                self.stdout = stdout.getvalue()
-                self.stderr = stderr.getvalue()
-                self.save()
-
-        except (KeyboardInterrupt, SystemExit) as e:
-            logger.critical(f"{self} got interrupted !")
-            self.state = Task.INTERRUPTED
-            self.create_replacement(is_retry=False)
-            self.save()
-            raise e
-
-        return True
-
-    def create_replacement(self, is_retry):
-        if is_retry:
-            retries = self.retries - 1 if self.retries > 0 else -1
-            delay = self.retry_delay * 2
-        else:
-            retries = self.retries
-            delay = self.retry_delay
-
-        logger.info(f"Creating a replacement task for {self}")
-        replaced_by = Task.objects.create(
-            function=self.function,
-            args=self.args,
-            kwargs=self.kwargs,
-            priority=self.priority,
-            created=self.created,
-            retries=retries,
-            retry_delay=delay,
-            state=Task.SLEEPING,
-            due=timezone.now() + timedelta(seconds=self.retry_delay),
-        )
-        self.replaced_by = replaced_by
-        self.save()
+        return TaskExec.States.icon(self.state)
 
 
-class Schedule(models.Model):
+class ScheduleExec(models.Model):
+    class Meta:
+        verbose_name = "Schedule Execution"
+
+    class States(models.TextChoices):
+        ACTIVE = "ACTIVE", _("Active")
+        INVALID = "INVALID", _("Invalid")
+
+        @classmethod
+        def icon(cls, state):
+            if state == cls.ACTIVE:
+                return "🟢"
+            elif state == cls.INVALID:
+                return "⚠️"
+            else:
+                return "❓"
 
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
-    function = models.CharField(max_length=1024)
-    args = PickledObjectField(blank=True, default=list)
-    kwargs = PickledObjectField(blank=True, default=dict)
-    datetime_kwarg = models.CharField(max_length=1024, blank=True, null=True)
-
-    last_check = models.DateTimeField(null=True, blank=True, default=timezone.now)
-    catch_up = models.BooleanField(default=False)
-    last_run = models.ForeignKey(Task, null=True, blank=True, on_delete=models.SET_NULL)
-
-    cron = models.CharField(max_length=1024)
-
-    def execute(self):
-        """Execute the schedule.
-
-        A check is done to make sure the schedule wasn't checked by another worker in the mean time.
-
-        The task may be added several times if catch_up is True.
-
-        Returns True if at least one task was queued (so you can loop for testing).
-        """
-
-        last_check = self.last_check
-        self.refresh_from_db()
-        if last_check != self.last_check:
-            # this schedule was executed from another worker in the mean time
-            return True
-
-        # we update last_check already to reduce race condition chance
-        self.last_check = timezone.now()
-        self.save()
-
-        did_something = False
-
-        if last_check is None:
-            next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
-        else:
-            next_dues = list(croniter_range(last_check, timezone.now(), self.cron))
-            if not self.catch_up and len(next_dues) > 1:
-                next_dues = [next_dues[-1]]
-
-        for next_due in next_dues:
-
-            logger.debug(f"Due : {self}")
-
-            dt_kwarg = {}
-            if self.datetime_kwarg:
-                dt_kwarg = {self.datetime_kwarg: next_due}
-
-            t = tasks[self.function].queue(*self.args, **self.kwargs, **dt_kwarg)
-            if t:
-                self.last_run = t
-                self.save()
-
-            did_something = True
-
-        return did_something
+    last_tick = models.DateTimeField(default=timezone.now)
+    last_run = models.ForeignKey(
+        TaskExec, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    state = models.CharField(
+        max_length=32, choices=States.choices, default=States.ACTIVE
+    )
 
     def __str__(self):
-        return f"Schedule {self.function} [{self.cron}]"
+        return f"Schedule '{self.name}' {self.icon}"
+
+    @property
+    def schedule(self):
+        """The corresponding schedule instance, or None if it's not in the registry"""
+        try:
+            return schedules_registry[self.name]
+        except KeyError:
+            return None
+
+    @property
+    def icon(self):
+        return ScheduleExec.States.icon(self.state)
+
+
+class WorkerStatus(models.Model):
+    """Represents the status of a worker. At each tick, the worker will update it's status.
+    After a certain tim"""
+
+    class Meta:
+        verbose_name = "Worker Status"
+        verbose_name_plural = "Workers Statuses"
+
+    class States(models.TextChoices):
+        ONLINE = "ONLINE", _("Online")
+        OFFLINE = "OFFLINE", _("Offline")
+        TIMEDOUT = "TIMEDOUT", _("Timedout")
+
+        @classmethod
+        def icon(cls, state):
+            if state == cls.ONLINE:
+                return "🟢"
+            elif state == cls.OFFLINE:
+                return "⚪"
+            elif state == cls.TIMEDOUT:
+                return "🟥"
+            else:
+                return "❓"
+
+    id = models.BigAutoField(primary_key=True)
+    label = models.CharField(max_length=1024, unique=True)
+    included_queues = models.JSONField(default=list)
+    excluded_queues = models.JSONField(default=list)
+    timeout = models.DurationField(default=datetime.timedelta(hours=1))
+    last_tick = models.DateTimeField(default=timezone.now)
+    started = models.DateTimeField(default=timezone.now)
+    stopped = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Worker '{self.label}' {self.icon}"
+
+    @property
+    def state(self):
+        if self.stopped:
+            return WorkerStatus.States.OFFLINE
+        elif self.last_tick < timezone.now() - self.timeout:
+            return WorkerStatus.States.TIMEDOUT
+        else:
+            return WorkerStatus.States.ONLINE
+
+    @property
+    def icon(self):
+        return WorkerStatus.States.icon(self.state)
