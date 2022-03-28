@@ -7,7 +7,6 @@ formatter = logging.Formatter(
 )
 
 handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
 handler.setFormatter(formatter)
 
 logger = logging.getLogger("toosimpleq")
@@ -21,13 +20,13 @@ def show_registry():
     if len(schedules_registry):
         schedules_names = ", ".join(schedules_registry.keys())
         logger.info(
-            f"Registry contains {len(schedules_registry)} schedules : {schedules_names}"
+            f"{len(schedules_registry)} schedules registered: {schedules_names}"
         )
     else:
-        logger.info("Registry contains no schedules")
+        logger.info("No schedules registered")
 
     if len(tasks_registry):
         tasks_names = ", ".join(tasks_registry.keys())
-        logger.info(f"Registry contains {len(tasks_registry)} tasks : {tasks_names}")
+        logger.info(f"{len(tasks_registry)} tasks registered: {tasks_names}")
     else:
-        logger.info("Registry contains no schedules")
+        logger.info("No tasks registered")

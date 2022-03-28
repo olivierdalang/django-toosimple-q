@@ -53,6 +53,8 @@ class Schedule:
             # retrieve the last execution
             schedule_exec, created = ScheduleExec.objects.get_or_create(name=self.name)
 
+            logger.debug(f"Executing {schedule_exec}")
+
             did_something = False
 
             if created and self.run_on_creation:
@@ -74,7 +76,7 @@ class Schedule:
 
             for next_due in next_dues:
 
-                logger.debug(f"Due : {self}")
+                logger.debug(f"{schedule_exec} is due at {next_due}")
 
                 dt_kwarg = {}
                 if self.datetime_kwarg:
@@ -93,3 +95,6 @@ class Schedule:
             schedule_exec.save()
 
         return did_something
+
+    def __str__(self):
+        return f"Schedule {self.name}"

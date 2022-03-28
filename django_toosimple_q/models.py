@@ -77,7 +77,7 @@ class TaskExec(models.Model):
     stderr = models.TextField(blank=True, default="")
 
     def __str__(self):
-        return f"Task {self.task_name} {self.icon}"
+        return f"Task '{self.task_name}' {self.icon} [{self.id}]"
 
     @property
     def task(self):
@@ -120,7 +120,7 @@ class ScheduleExec(models.Model):
     )
 
     def __str__(self):
-        return f"Task {self.name} {self.icon}"
+        return f"Schedule '{self.name}' {self.icon}"
 
     @property
     def schedule(self):
@@ -169,7 +169,7 @@ class WorkerStatus(models.Model):
     stopped = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"Worker {self.label} {self.icon}"
+        return f"Worker '{self.label}' {self.icon}"
 
     @property
     def state(self):

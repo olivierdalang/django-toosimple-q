@@ -43,6 +43,8 @@ class Task:
 
         from .models import TaskExec
 
+        logger.debug(f"Enqueuing task '{self.name}'")
+
         due_datetime = due or timezone.now()
 
         if self.unique:
@@ -139,3 +141,6 @@ class Task:
         )
         task_exec.replaced_by = replaced_by
         task_exec.save()
+
+    def __str__(self):
+        return f"Task {self.name}"

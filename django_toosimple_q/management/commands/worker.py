@@ -10,7 +10,7 @@ from django.db.models import Case, Value, When
 from django.utils import timezone
 from django.utils.translation import ugettext as _
 
-from ...logging import logger, show_registry
+from ...logging import logger
 from ...models import ScheduleExec, TaskExec, WorkerStatus
 from ...registry import schedules_registry, tasks_registry
 
@@ -65,20 +65,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
-        if int(options["verbosity"]) > 1:
-            logger.setLevel(logging.DEBUG)
-        else:
-            logger.setLevel(logging.INFO)
-
         # Handle SIGTERM and SIGINT (default_int_handler raises KeyboardInterrupt)
         # see https://stackoverflow.com/a/40785230
         signal.signal(signal.SIGINT, signal.default_int_handler)
         signal.signal(signal.SIGTERM, signal.default_int_handler)
-
-        logger.info("Starting worker")
-        show_registry()
-
-        self.verbosity = int(options["verbosity"])
 
         self.queues = options["queue"] or []
         self.excluded_queues = options["exclude_queue"] or []
@@ -86,12 +76,19 @@ class Command(BaseCommand):
         self.label = options["label"].replace(r"{pid}", str(os.getpid()))
         self.timeout = options["timeout"]
 
+        logger.info(f"Starting worker '{self.label}'...")
         if self.queues:
-            logger.info(f"Starting queues {self.queues}...")
+            logger.info(f"Included queues: {self.queues}")
         elif self.excluded_queues:
-            logger.info(f"Starting queues except {self.excluded_queues}...")
+            logger.info(f"Excluded queues: {self.excluded_queues}")
+
+        self.verbosity = int(options["verbosity"])
+        if self.verbosity == 0:
+            logger.setLevel(logging.WARNING)
+        elif self.verbosity == 1:
+            logger.setLevel(logging.INFO)
         else:
-            logger.info(f"Starting all queues...")
+            logger.setLevel(logging.DEBUG)
 
         # On startup, we report the worker went online
         self.worker_status, _ = WorkerStatus.objects.update_or_create(
@@ -119,7 +116,7 @@ class Command(BaseCommand):
                     break
 
                 if not did_something:
-                    # wait for next tick
+                    logger.debug(f"Waiting for next tick...")
                     dt = (timezone.now() - last_run).total_seconds()
                     time.sleep(max(0, self.tick_duration - dt))
 
@@ -140,7 +137,7 @@ class Command(BaseCommand):
         self.worker_status.last_tick = timezone.now()
         self.worker_status.save()
 
-        logger.debug(f"Disabling orphaned schedules...")
+        logger.debug(f"Disabling orphaned schedules")
         with transaction.atomic():
             count = (
                 ScheduleExec.objects.exclude(state=ScheduleExec.States.INVALID)
@@ -150,7 +147,7 @@ class Command(BaseCommand):
             if count > 0:
                 logger.warning(f"Found {count} invalid schedules")
 
-        logger.debug(f"Disabling orphaned tasks...")
+        logger.debug(f"Disabling orphaned tasks")
         with transaction.atomic():
             count = (
                 TaskExec.objects.exclude(state=TaskExec.States.INVALID)
@@ -160,19 +157,19 @@ class Command(BaseCommand):
             if count > 0:
                 logger.warning(f"Found {count} invalid tasks")
 
-        logger.debug(f"Checking schedules...")
+        logger.debug(f"Checking schedules")
         schedules_to_check = schedules_registry.for_queue(
             self.queues, self.excluded_queues
         )
         for schedule in schedules_to_check:
             did_something |= schedule.execute(self.tick_duration)
 
-        logger.debug(f"Waking up tasks...")
+        logger.debug(f"Waking up tasks")
         TaskExec.objects.filter(state=TaskExec.States.SLEEPING).filter(
             due__lte=timezone.now()
         ).update(state=TaskExec.States.QUEUED)
 
-        logger.debug(f"Checking tasks...")
+        logger.debug(f"Checking tasks")
         # We compile an ordering clause from the registry
         order_by_priority_clause = Case(
             *[
@@ -188,6 +185,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             task_exec = tasks_execs.select_for_update().first()
             if task_exec:
+                logger.debug(f"{task_exec} is due !")
                 task_exec.started = timezone.now()
                 task_exec.state = TaskExec.States.PROCESSING
                 task_exec.worker = self.worker_status
