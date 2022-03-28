@@ -22,3 +22,9 @@ def create_user():
     if retry > 0:
         raise Exception("Failed: had to rename the user")
     return 0
+
+
+@register_task(name="sleep_task", queue="tasks")
+def sleep_task(duration):
+    time.sleep(duration)
+    return True

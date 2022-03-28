@@ -4,6 +4,7 @@ import traceback
 from datetime import timedelta
 from typing import Callable
 
+from django.db import transaction
 from django.utils import timezone
 
 from .logging import logger
@@ -84,49 +85,36 @@ class Task:
         Returns True if at the task was executed, whether it failed or succeeded (so you can loop for testing).
         """
 
-        assert self.name == task_exec.task_name
-
-        task_exec.refresh_from_db()
-        if task_exec.state != TaskExec.States.QUEUED and not (
-            task_exec.state == TaskExec.States.SLEEPING and timezone.now() >= self.due
-        ):
-            # this task was executed from another worker in the mean time
-            return True
-
         logger.debug(f"Executing : {self}")
 
-        task_exec.started = timezone.now()
-        task_exec.state = TaskExec.States.PROCESSING
-        task_exec.save()
-
         try:
-            stdout = io.StringIO()
-            stderr = io.StringIO()
+            with transaction.atomic():
+                try:
+                    stdout = io.StringIO()
+                    stderr = io.StringIO()
 
-            try:
-                with contextlib.redirect_stderr(stderr):
-                    with contextlib.redirect_stdout(stdout):
-                        task_exec.result = self.callable(
-                            *task_exec.args, **task_exec.kwargs
-                        )
-                task_exec.state = TaskExec.States.SUCCEEDED
-            except Exception:
-                logger.warning(f"{task_exec} failed !")
-                task_exec.state = TaskExec.States.FAILED
-                task_exec.error = traceback.format_exc()
-                if task_exec.retries != 0:
-                    self.create_replacement(task_exec, is_retry=True)
-            finally:
-                task_exec.finished = timezone.now()
-                task_exec.stdout = stdout.getvalue()
-                task_exec.stderr = stderr.getvalue()
-                task_exec.save()
-
+                    with contextlib.redirect_stderr(stderr):
+                        with contextlib.redirect_stdout(stdout):
+                            task_exec.result = self.callable(
+                                *task_exec.args, **task_exec.kwargs
+                            )
+                    task_exec.state = TaskExec.States.SUCCEEDED
+                except Exception:
+                    logger.warning(f"{task_exec} failed !")
+                    task_exec.state = TaskExec.States.FAILED
+                    task_exec.error = traceback.format_exc()
+                    if task_exec.retries != 0:
+                        self.create_replacement(task_exec, is_retry=True)
+                finally:
+                    task_exec.finished = timezone.now()
+                    task_exec.stdout = stdout.getvalue()
+                    task_exec.stderr = stderr.getvalue()
+                    task_exec.save()
         except (KeyboardInterrupt, SystemExit) as e:
             logger.critical(f"{task_exec} got interrupted !")
             task_exec.state = TaskExec.States.INTERRUPTED
-            self.create_replacement(task_exec, is_retry=False)
             task_exec.save()
+            self.create_replacement(task_exec, is_retry=False)
             raise e
 
         return True

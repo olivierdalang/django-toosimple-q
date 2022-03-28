@@ -1,14 +1,16 @@
 import os
+import signal
+import time
 import unittest
 
 from django.contrib.auth.models import User
 from django.test import TransactionTestCase
 from joblib import Parallel, delayed
 
-from django_toosimple_q.models import ScheduleExec
+from django_toosimple_q.models import ScheduleExec, TaskExec
 
 from ..logging import logger
-from .concurrency.tasks import create_user
+from .concurrency.tasks import create_user, sleep_task
 from .concurrency.utils import prepare_toxiproxy, sys_call
 
 COUNT = 32
@@ -66,3 +68,56 @@ class ConcurrencyTest(TransactionTestCase):
         self.assertEqual(User.objects.count(), 0)
         self.run_workers_batch(self.make_command(queue="tasks"))
         self.assertEqual(User.objects.count(), 1)
+
+    def test_task_processing_state(self):
+
+        t = sleep_task.queue(duration=4)
+
+        # Check that the task correctly queued
+        t.refresh_from_db()
+        self.assertEqual(t.state, TaskExec.States.QUEUED)
+
+        # Start the task in a background process
+        popen = sys_call(self.make_command(queue="tasks"), sync=False)
+
+        # Check that it is now processing
+        time.sleep(3)
+        t.refresh_from_db()
+        self.assertEqual(t.state, TaskExec.States.PROCESSING)
+
+        # Wait for the background process to finish
+        popen.wait(timeout=5)
+
+        # Check that it correctly succeeds
+        time.sleep(1)
+        t.refresh_from_db()
+        self.assertEqual(t.state, TaskExec.States.SUCCEEDED)
+
+    def test_task_graceful_stop(self):
+        """Ensure that on graceful stop, running tasks status is set to interrupted and a replacement task is created"""
+
+        t = sleep_task.queue(duration=10)
+
+        # Check that the task correctly queued
+        t.refresh_from_db()
+        self.assertEqual(t.state, TaskExec.States.QUEUED)
+
+        # Start the task in a background process
+        popen = sys_call(self.make_command(queue="tasks"), sync=False)
+
+        # Check that it is now processing
+        time.sleep(3)
+        t.refresh_from_db()
+        self.assertEqual(t.state, TaskExec.States.PROCESSING)
+
+        # Gracefully stop the background process to finish
+        if os.name == "nt":
+            popen.send_signal(signal.CTRL_C_EVENT)
+        else:
+            popen.send_signal(signal.SIGTERM)
+        popen.communicate(timeout=5)
+
+        # Check that the state is correctly set to interrupted and that a replacing task was added
+        t.refresh_from_db()
+        self.assertEqual(t.state, TaskExec.States.INTERRUPTED)
+        self.assertEqual(t.replaced_by.state, TaskExec.States.SLEEPING)
