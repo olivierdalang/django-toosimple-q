@@ -3,10 +3,10 @@ from django.core import management
 from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import ScheduleExec, TaskExec
 
-from .base import TooSimpleQTestCase
+from .base import TooSimpleQRegularTestCase
 
 
-class TestAdmin(TooSimpleQTestCase):
+class TestAdmin(TooSimpleQRegularTestCase):
     def test_task_admin(self):
         """Check if task admin pages work"""
 

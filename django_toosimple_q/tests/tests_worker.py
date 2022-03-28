@@ -4,10 +4,10 @@ from freezegun import freeze_time
 from django_toosimple_q.decorators import register_task
 from django_toosimple_q.models import WorkerStatus
 
-from .base import TooSimpleQTestCase
+from .base import TooSimpleQRegularTestCase
 
 
-class TestWorker(TooSimpleQTestCase):
+class TestWorker(TooSimpleQRegularTestCase):
     @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
     def test_worker(self, frozen_datetime):
         """Checking that worker status are correctly created"""

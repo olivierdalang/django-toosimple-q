@@ -2,7 +2,7 @@
 
 """Settings overrides for testing concurrent workers"""
 
-import os
+from .utils import is_postgres
 
 DEBUG = True
 USE_TZ = True
@@ -10,7 +10,7 @@ TIME_ZONE = "UTC"
 SECRET_KEY = "secret_key"
 
 
-if os.getenv("TOOSIMPLEQ_TEST_DB", "sqlite") == "postgres":
+if is_postgres():
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",

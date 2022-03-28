@@ -7,10 +7,10 @@ from freezegun import freeze_time
 from django_toosimple_q.decorators import register_task
 from django_toosimple_q.models import TaskExec
 
-from .base import TooSimpleQTestCase
+from .base import TooSimpleQRegularTestCase
 
 
-class TestTasks(TooSimpleQTestCase):
+class TestTasks(TooSimpleQRegularTestCase):
     def test_task_states(self):
         """Checking correctness of task states"""
 

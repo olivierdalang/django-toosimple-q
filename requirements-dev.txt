@@ -1,7 +1,6 @@
 # tests
 freezegun==1.2.1
 psycopg2==2.*
-joblib==1.1.0
 
 # devenv
 pre-commit

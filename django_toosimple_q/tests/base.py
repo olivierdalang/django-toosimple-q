@@ -1,13 +1,20 @@
+import os
+import signal
+import subprocess
+
 from django.contrib.auth.models import User
 from django.core import mail
 from django.db.models import Count
-from django.test import Client, TestCase
+from django.test import Client, TestCase, TransactionTestCase
 
 from django_toosimple_q.models import ScheduleExec, TaskExec
 from django_toosimple_q.registry import schedules_registry, tasks_registry
 
+from ..logging import logger
+from .utils import is_postgres, prepare_toxiproxy
 
-class TooSimpleQTestCase(TestCase):
+
+class TooSimpleQTestCaseMixin:
     """
     Base TestCase for TooSimpleQ.
 
@@ -81,3 +88,87 @@ class TooSimpleQTestCase(TestCase):
 
         if state != expected_state:
             raise AssertionError(f"Expected {expected_state}, got {state} [{name}]")
+
+
+class TooSimpleQRegularTestCase(TooSimpleQTestCaseMixin, TestCase):
+    """
+    Base TestCase for TooSimpleQ.
+
+    See TooSimpleQTestCaseMixin
+    """
+
+
+class TooSimpleQBackgroundTestCase(TransactionTestCase):
+    """
+    Base TransactionTestCase for TooSimpleQ.
+
+    - Ensures the database is accessible from background workers (transactiontestcase do no wrap tests in transactions)
+    - Starts a toxiproy to simulate latency for the background workers
+    - Adds some helpers methods to manage the workers
+
+    See TooSimpleQTestCaseMixin.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        if is_postgres():
+            prepare_toxiproxy()
+
+    def workers_start_in_background(self, queue=None, count=1):
+        """Starts N workers in the background on the specified queue."""
+
+        environ = {
+            **os.environ,
+            "DJANGO_SETTINGS_MODULE": "django_toosimple_q.tests.concurrency.settings",
+        }
+        command = ["python", "manage.py", "worker", "--until_done", "--skip-checks"]
+        if queue:
+            command.extend(["--queue", queue])
+
+        self.processes = []
+        for _ in range(count):
+            self.processes.append(
+                subprocess.Popen(
+                    command,
+                    encoding="utf-8",
+                    env=environ,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+            )
+
+    def workers_wait_for_success(self):
+        """Waits for all processes to finish, and assert they succeeded."""
+
+        self.stdouts, self.stderrs = [], []
+        for process in self.processes:
+            stdout, stderr = process.communicate(timeout=15)
+            self.stdouts.append(stdout)
+            self.stderrs.append(stderr)
+            process.wait()
+        self.workers_assert_no_error()
+
+    def workers_gracefully_stop(self):
+        """Gracefully stops all workers (note that you must still wait for them to finish using wait_for_success)."""
+
+        for process in self.processes:
+            if os.name == "nt":
+                # FIXME: This is buggy. When running, test passes, but then the test stops, and further
+                # tests are not run. Not sure if sending CTRL_C to the child process also affects the current
+                # process for some reason ?
+                process.send_signal(signal.CTRL_C_EVENT)
+            else:
+                process.send_signal(signal.SIGTERM)
+
+    def workers_assert_no_error(self):
+        error_count = len([p for p in self.processes if p.returncode != 0])
+        total_count = len(self.processes)
+        if error_count:
+            # show last output
+            def indent(txt):
+                return "\n".join([" >  " + l for l in txt.splitlines()])
+
+            logger.exception("\n" + indent(self.stdouts[-1]))
+            logger.exception("\n" + indent(self.stderrs[-1]))
+            raise AssertionError(f"{error_count} out of {total_count} workers errored!")

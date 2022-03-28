@@ -1,6 +1,5 @@
 """Settings overrides for testing concurrent workers, uses toxiproxy which simulates latency"""
 
-import os
 
 from ..settings import *
 
@@ -8,5 +7,5 @@ from ..settings import *
 DATABASES["default"].update(DATABASES["default"]["TEST"])
 
 # On postgres, background workers connect through toxiproxy to simluate latency
-if os.getenv("TOOSIMPLEQ_TEST_DB", "sqlite") == "postgres":
+if is_postgres():
     DATABASES["default"]["PORT"] = "5444"

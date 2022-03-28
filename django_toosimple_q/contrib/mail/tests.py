@@ -5,11 +5,11 @@ from django.core.mail import send_mail, send_mass_mail
 from django.test.utils import override_settings
 
 from ...models import TaskExec
-from ...tests.base import TooSimpleQTestCase
+from ...tests.base import TooSimpleQRegularTestCase
 from . import tasks as mail_tasks
 
 
-class TestMail(TooSimpleQTestCase):
+class TestMail(TooSimpleQRegularTestCase):
     def setUp(self):
         super().setUp()
         # Reload the tasks modules to repopulate the registries (emulates auto-discovery)

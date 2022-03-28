@@ -5,10 +5,10 @@ from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import ScheduleExec, TaskExec
 from django_toosimple_q.registry import schedules_registry
 
-from .base import TooSimpleQTestCase
+from .base import TooSimpleQRegularTestCase
 
 
-class TestSchedules(TooSimpleQTestCase):
+class TestSchedules(TooSimpleQRegularTestCase):
     @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
     def test_schedule(self, frozen_datetime):
         """Testing schedules"""
