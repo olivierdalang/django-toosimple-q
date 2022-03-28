@@ -233,6 +233,19 @@ optional arguments:
                         worker will execute)
 ```
 
+## Demo project
+
+A demo project with pre-configured tasks is provided.
+
+```
+python demoproject/manage.py migrate
+python demoproject/manage.py createsuperuser
+python demoproject/manage.py runserver
+python demoproject/manage.py worker  # from a different shell
+```
+
+Then open http://127.0.0.1:8000/admin in your browser
+
 ## Contrib apps
 
 ### django_toosimple_q.contrib.mail
@@ -277,17 +290,6 @@ $ export TOOSIMPLEQ_TEST_DB=postgres # on Windows: `$Env:TOOSIMPLEQ_TEST_DB = "p
 
 Tests are run automatically on github.
 
-#### Manual testing
-
-You can manually test the provided test project :
-```shell
-$ python manage.py migrate
-$ python manage.py createsuperuser
-$ python manage.py worker
-$ python manage.py runserver
-```
-
-Then open http://127.0.0.1:8000/admin in your browser
 
 
 ### Contribute

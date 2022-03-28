@@ -1,23 +1,12 @@
-"""Minimal settings for testing concurrent workers"""
+"""Settings overrides for testing concurrent workers, uses toxiproxy which simulates latency"""
 
-DEBUG = True
-USE_TZ = True
-TIME_ZONE = "UTC"
+import os
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "HOST": "127.0.0.1",
-        "PORT": "5444",  # go through toxiproxy for artifical latency
-        "NAME": "test_postgres",
-        "USER": "postgres",
-        "PASSWORD": "postgres",
-    }
-}
+from ..settings import *
 
-INSTALLED_APPS = [
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django_toosimple_q",
-    "django_toosimple_q.tests.concurrency",
-]
+# The background workers must also use the test database
+DATABASES["default"].update(DATABASES["default"]["TEST"])
+
+# On postgres, background workers connect through toxiproxy to simluate latency
+if os.getenv("TOOSIMPLEQ_TEST_DB", "sqlite") == "postgres":
+    DATABASES["default"]["PORT"] = "5444"
