@@ -16,6 +16,7 @@ from .concurrency.utils import prepare_toxiproxy, sys_call
 COUNT = 32
 
 
+# FIXME: not sure if we really can't have this working on SQLITE ?
 @unittest.skipIf(
     os.environ.get("TOOSIMPLEQ_TEST_DB") != "postgres", "requires postgres backend"
 )
@@ -92,6 +93,9 @@ class ConcurrencyTest(TransactionTestCase):
         t.refresh_from_db()
         self.assertEqual(t.state, TaskExec.States.SUCCEEDED)
 
+    @unittest.skipIf(
+        os.name == "nt", "didn't find a way to gracefully stop subprocess on windows"
+    )
     def test_task_graceful_stop(self):
         """Ensure that on graceful stop, running tasks status is set to interrupted and a replacement task is created"""
 
@@ -111,6 +115,9 @@ class ConcurrencyTest(TransactionTestCase):
 
         # Gracefully stop the background process to finish
         if os.name == "nt":
+            # FIXME: This is buggy. When running, test passes, but then the test stops, and further
+            # tests are not run. Not sure if sending CTRL_C to the child process also affects the current
+            # process for some reason ?
             popen.send_signal(signal.CTRL_C_EVENT)
         else:
             popen.send_signal(signal.SIGTERM)

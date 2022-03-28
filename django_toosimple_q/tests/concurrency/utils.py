@@ -24,7 +24,7 @@ def sys_call(cmd, check=True, sync=True):
     try:
         if sync:
             process = subprocess.run(
-                cmd, capture_output=True, encoding="utf-8", env=environ
+                cmd, capture_output=True, encoding="utf-8", env=environ, check=True
             )
         else:
             return subprocess.Popen(

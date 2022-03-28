@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import signal
+import sys
 import time
 
 from django.core.management.base import BaseCommand
@@ -121,8 +122,11 @@ class Command(BaseCommand):
                     time.sleep(max(0, self.tick_duration - dt))
 
                 last_run = timezone.now()
+        except (KeyboardInterrupt, SystemExit):
+            logger.critical(f"Exiting at user's request")
+            sys.exit(0)
         finally:
-            # On exit (or fatal error), we report the worker went offline
+            # On exit (or other error), we report the worker went offline
             self.worker_status.stopped = timezone.now()
             self.worker_status.save()
 
