@@ -1,4 +1,6 @@
+import datetime
 import logging
+import os
 import signal
 import time
 
@@ -9,7 +11,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext as _
 
 from ...logging import logger, show_registry
-from ...models import ScheduleExec, TaskExec
+from ...models import ScheduleExec, TaskExec, WorkerStatus
 from ...registry import schedules_registry, tasks_registry
 
 
@@ -49,6 +51,18 @@ class Command(BaseCommand):
             help="frequency in seconds at which the database is checked for new tasks/schedules",
         )
 
+        parser.add_argument(
+            "--label",
+            default=r"worker-{pid}",
+            help=r"the name of the worker to help identifying it ('{pid}' will be replaced by the process id)",
+        )
+        parser.add_argument(
+            "--timeout",
+            default=3600,
+            type=float,
+            help="the time in seconds after which this worker will be considered offline (set this to a value higher than the longest tasks this worker will execute)",
+        )
+
     def handle(self, *args, **options):
 
         if int(options["verbosity"]) > 1:
@@ -64,9 +78,13 @@ class Command(BaseCommand):
         logger.info("Starting worker")
         show_registry()
 
-        self.queues = options["queue"]
-        self.excluded_queues = options["exclude_queue"]
+        self.verbosity = int(options["verbosity"])
+
+        self.queues = options["queue"] or []
+        self.excluded_queues = options["exclude_queue"] or []
         self.tick_duration = options["tick"]
+        self.label = options["label"].replace(r"{pid}", str(os.getpid()))
+        self.timeout = options["timeout"]
 
         if self.queues:
             logger.info(f"Starting queues {self.queues}...")
@@ -75,29 +93,52 @@ class Command(BaseCommand):
         else:
             logger.info(f"Starting all queues...")
 
-        last_run = timezone.now()
-        while True:
-            did_something = self.tick()
+        # On startup, we report the worker went online
+        self.worker_status, _ = WorkerStatus.objects.update_or_create(
+            label=self.label,
+            defaults={
+                "started": timezone.now(),
+                "stopped": None,
+                "included_queues": self.queues,
+                "excluded_queues": self.excluded_queues,
+                "timeout": datetime.timedelta(seconds=self.timeout),
+            },
+        )
 
-            if options["once"]:
-                logger.info("Exiting loop because --once was passed")
-                break
-
-            if options["until_done"] and not did_something:
-                logger.info("Exiting loop because --until_done was passed")
-                break
-
-            if not did_something:
-                # wait for next tick
-                dt = (timezone.now() - last_run).total_seconds()
-                time.sleep(max(0, self.tick_duration - dt))
-
+        try:
             last_run = timezone.now()
+            while True:
+                did_something = self.tick()
+
+                if options["once"]:
+                    logger.info("Exiting loop because --once was passed")
+                    break
+
+                if options["until_done"] and not did_something:
+                    logger.info("Exiting loop because --until_done was passed")
+                    break
+
+                if not did_something:
+                    # wait for next tick
+                    dt = (timezone.now() - last_run).total_seconds()
+                    time.sleep(max(0, self.tick_duration - dt))
+
+                last_run = timezone.now()
+        finally:
+            # On exit (or fatal error), we report the worker went offline
+            self.worker_status.stopped = timezone.now()
+            self.worker_status.save()
 
     def tick(self):
         """Returns True if something happened (so you can loop for testing)"""
 
+        logger.debug(f"Tick !")
+
         did_something = False
+
+        logger.debug(f"Update status...")
+        self.worker_status.last_tick = timezone.now()
+        self.worker_status.save()
 
         logger.debug(f"Disabling orphaned schedules...")
         with transaction.atomic():
@@ -149,6 +190,7 @@ class Command(BaseCommand):
             if task_exec:
                 task_exec.started = timezone.now()
                 task_exec.state = TaskExec.States.PROCESSING
+                task_exec.worker = self.worker_status
                 task_exec.save()
 
         if task_exec:

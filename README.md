@@ -212,6 +212,8 @@ Besides standard django management commands arguments, the management command su
 usage: manage.py worker [--queue QUEUE | --exclude_queue EXCLUDE_QUEUE]
                         [--tick TICK]
                         [--once | --until_done]
+                        [--label LABEL]
+                        [--timeout TIMEOUT]
 
 optional arguments:
   --queue QUEUE         which queue to run (can be used several times, all
@@ -224,6 +226,11 @@ optional arguments:
   --once                run once then exit (useful for debugging)
   --until_done          run until no tasks are available then exit (useful for
                         debugging)
+  --label LABEL         the name of the worker to help identifying it ('{pid}'
+                        will be replaced by the process id)
+  --timeout TIMEOUT     the time in seconds after which this worker will be considered
+                        offline (set this to a value higher than the longest tasks this
+                        worker will execute)
 ```
 
 ## Contrib apps
@@ -323,6 +330,7 @@ $ pre-commit install
   - added `due` argument to `task.queue()`
   - added `queue` argument to `@register_schedule` (which allows pickup schedules selectively by worker)
   - `priority` and `queue` are no longer fields in the database, but are used directly from the registry
+  - added `WorkerStatus` model to monitor workers
 
 - 2022-03-24 : v0.4.0
   - made `last_check` and `last_run` optional in the admin

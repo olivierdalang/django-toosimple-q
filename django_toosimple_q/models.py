@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -67,6 +69,9 @@ class TaskExec(models.Model):
     replaced_by = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL
     )
+    worker = models.ForeignKey(
+        "WorkerStatus", null=True, blank=True, on_delete=models.SET_NULL
+    )
 
     stdout = models.TextField(blank=True, default="")
     stderr = models.TextField(blank=True, default="")
@@ -128,3 +133,53 @@ class ScheduleExec(models.Model):
     @property
     def icon(self):
         return ScheduleExec.States.icon(self.state)
+
+
+class WorkerStatus(models.Model):
+    """Represents the status of a worker. At each tick, the worker will update it's status.
+    After a certain tim"""
+
+    class Meta:
+        verbose_name = "Worker Status"
+        verbose_name_plural = "Workers Statuses"
+
+    class States(models.TextChoices):
+        ONLINE = "ONLINE", _("Online")
+        OFFLINE = "OFFLINE", _("Offline")
+        TIMEDOUT = "TIMEDOUT", _("Timedout")
+
+        @classmethod
+        def icon(cls, state):
+            if state == cls.ONLINE:
+                return "🟢"
+            elif state == cls.OFFLINE:
+                return "⚪"
+            elif state == cls.TIMEDOUT:
+                return "🟥"
+            else:
+                return "❓"
+
+    id = models.BigAutoField(primary_key=True)
+    label = models.CharField(max_length=1024, unique=True)
+    included_queues = models.JSONField(default=list)
+    excluded_queues = models.JSONField(default=list)
+    timeout = models.DurationField(default=datetime.timedelta(hours=1))
+    last_tick = models.DateTimeField(default=timezone.now)
+    started = models.DateTimeField(default=timezone.now)
+    stopped = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Worker {self.label} {self.icon}"
+
+    @property
+    def state(self):
+        if self.stopped:
+            return WorkerStatus.States.OFFLINE
+        elif self.last_tick < timezone.now() - self.timeout:
+            return WorkerStatus.States.TIMEDOUT
+        else:
+            return WorkerStatus.States.ONLINE
+
+    @property
+    def icon(self):
+        return WorkerStatus.States.icon(self.state)

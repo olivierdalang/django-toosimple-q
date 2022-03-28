@@ -7,7 +7,7 @@ from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
-from .models import ScheduleExec, TaskExec
+from .models import ScheduleExec, TaskExec, WorkerStatus
 from .registry import schedules_registry, tasks_registry
 
 
@@ -171,6 +171,34 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     @admin.display(ordering="last_tick")
     def last_tick_(self, obj):
         return short_naturaltime(obj.last_tick)
+
+
+@admin.register(WorkerStatus)
+class WorkerStatusAdmin(ReadOnlyAdmin):
+    list_display = [
+        "icon",
+        "label",
+        "last_tick_",
+        "started_",
+        "stopped_",
+        "included_queues",
+        "excluded_queues",
+    ]
+    list_display_links = ["label"]
+    ordering = ["-started", "label"]
+    readonly_fields = ["state"]
+
+    @admin.display(ordering="last_tick")
+    def last_tick_(self, obj):
+        return short_naturaltime(obj.last_tick)
+
+    @admin.display(ordering="started")
+    def started_(self, obj):
+        return short_naturaltime(obj.started)
+
+    @admin.display(ordering="stopped")
+    def stopped_(self, obj):
+        return short_naturaltime(obj.stopped)
 
 
 def short_naturaltime(datetime):
