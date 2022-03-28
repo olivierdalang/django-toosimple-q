@@ -35,7 +35,7 @@ class ConcurrencyTest(TransactionTestCase):
         return command
 
     def run_workers_batch(self, command):
-        outputs = Parallel(n_jobs=COUNT)(
+        outputs = Parallel(n_jobs=COUNT, backend="threading")(
             delayed(sys_call)(command) for i in range(COUNT)
         )
 
