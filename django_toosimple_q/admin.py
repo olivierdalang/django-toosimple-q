@@ -54,8 +54,8 @@ class TaskExecAdmin(ReadOnlyAdmin):
         "icon",
         "task_name",
         "arguments_",
-        "queue",
-        "priority",
+        "queue_",
+        "priority_",
         "due_",
         "created_",
         "started_",
@@ -67,7 +67,7 @@ class TaskExecAdmin(ReadOnlyAdmin):
     list_filter = ["task_name", TaskQueueListFilter, "state"]
     actions = ["action_requeue"]
     ordering = ["-created"]
-    readonly_fields = ["queue", "priority", "result"]
+    readonly_fields = ["queue_", "priority_", "result"]
 
     def arguments_(self, obj):
         return format_html(
@@ -99,6 +99,16 @@ class TaskExecAdmin(ReadOnlyAdmin):
         if obj.replaced_by:
             return f"{obj.replaced_by.icon} [{obj.replaced_by.pk}]"
 
+    def queue_(self, obj):
+        if not obj.task:
+            return None
+        return obj.task.queue
+
+    def priority_(self, obj):
+        if not obj.task:
+            return None
+        return obj.task.priority
+
     def action_requeue(self, request, queryset):
         for task in queryset:
             tasks_registry[task.task_name].enqueue(*task.args, **task.kwargs)
@@ -114,9 +124,9 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     list_display = [
         "icon",
         "name",
-        "cron",
+        "cron_",
         "arguments_",
-        "queue",
+        "queue_",
         "last_tick_",
         "last_run_due_",
         "last_run_task_",
@@ -124,13 +134,25 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     list_display_links = ["name"]
     ordering = ["last_tick"]
     list_filter = ["name", ScheduleQueueListFilter, "state"]
-    readonly_fields = ["cron", "args", "kwargs", "queue", "last_run_due_"]
+    readonly_fields = ["cron_", "arguments_", "queue_", "last_run_due_"]
+
+    def cron_(self, obj):
+        if not obj.schedule:
+            return None
+        return obj.schedule.cron
+
+    def queue_(self, obj):
+        if not obj.schedule:
+            return None
+        return obj.schedule.queue
 
     def arguments_(self, obj):
+        if not obj.schedule:
+            return None
         return format_html(
             "{}<br/>{}",
-            truncatechars(str(obj.args), 32),
-            truncatechars(str(obj.kwargs), 32),
+            truncatechars(str(obj.schedule.args), 32),
+            truncatechars(str(obj.schedule.kwargs), 32),
         )
 
     @admin.display(ordering="last_run__due")

@@ -75,26 +75,10 @@ class TaskExec(models.Model):
         return f"Task {self.task_name} {self.icon}"
 
     @property
-    def priority(self):
-        # TODO: use property for task instance instead
+    def task(self):
+        """The corresponding task instance, or None if it's not in the registry"""
         try:
-            return tasks_registry[self.task_name].priority
-        except KeyError:
-            return None
-
-    @property
-    def queue(self):
-        # TODO: use property for task instance instead
-        try:
-            return tasks_registry[self.task_name].queue
-        except KeyError:
-            return None
-
-    @property
-    def unique(self):
-        # TODO: use property for task instance instead
-        try:
-            return tasks_registry[self.task_name].unique
+            return tasks_registry[self.task_name]
         except KeyError:
             return None
 
@@ -134,42 +118,10 @@ class ScheduleExec(models.Model):
         return f"Task {self.name} {self.icon}"
 
     @property
-    def cron(self):
-        # TODO: use property for schedule instance instead
+    def schedule(self):
+        """The corresponding schedule instance, or None if it's not in the registry"""
         try:
-            return schedules_registry[self.name].cron
-        except KeyError:
-            return None
-
-    @property
-    def args(self):
-        # TODO: use property for schedule instance instead
-        try:
-            return schedules_registry[self.name].args
-        except KeyError:
-            return None
-
-    @property
-    def kwargs(self):
-        # TODO: use property for schedule instance instead
-        try:
-            return schedules_registry[self.name].kwargs
-        except KeyError:
-            return None
-
-    @property
-    def queue(self):
-        # TODO: use property for schedule instance instead
-        try:
-            return schedules_registry[self.name].queue
-        except KeyError:
-            return None
-
-    @property
-    def priority(self):
-        # TODO: use property for schedule instance instead
-        try:
-            return schedules_registry[self.name].priority
+            return schedules_registry[self.name]
         except KeyError:
             return None
 
