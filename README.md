@@ -30,15 +30,15 @@ Compatibility:
 
 Install the library :
 ```shell
-$ pip install django-toosimple-q
+pip install django-toosimple-q
 ```
 
 Enable the app in `settings.py` :
 ```python
 INSTALLED_APPS = [
-    ...
+    # ...
     'django_toosimple_q',
-    ...
+    # ...
 ]
 ```
 
@@ -61,7 +61,7 @@ my_task.queue("Peter")
 
 Registered tasks can be scheduled from code using this cron-like syntax :
 ```python
-from django_toosimple_q.decorators import register_task, schedule
+from django_toosimple_q.decorators import register_task, schedule_task
 
 # Register and schedule tasks
 @schedule_task(cron="30 8 * * *", args=['John'])
@@ -72,7 +72,7 @@ def morning_routine(name):
 
 To consume the tasks, you need to run at least one worker :
 ```shell
-$ python manage.py worker
+python manage.py worker
 ```
 The workers will take care of adding scheduled tasks to the queue when needed, and will execute the tasks.
 
@@ -85,30 +85,30 @@ The package autoloads `tasks.py` from all installed apps. While this is the reco
 You can optionnaly give a custom name to your tasks. This is required when your task is defined in a local scope.
 ```python
 @register_task(name="my_favourite_task")
-def my_task(name):
-    return f"Good morning {name} !"
+def my_task():
+    ...
 ```
 
 You can set task priorities.
 ```python
 @register_task(priority=0)
-def my_favourite_task(name):
-    return f"Good bye {name} !"
+def my_favourite_task():
+    ...
 
 @register_task(priority=1)
-def my_other_task(name):
-    return f"Hello {name} !"
+def my_other_task():
+    ...
 
 # Enqueue tasks
-my_other_task.queue("John")
-my_favourite_task.queue("Peter")  # will be executed before the other one
+my_other_task.queue()
+my_favourite_task.queue()  # will be executed before the other one
 ```
 
 You can define `retries=N` and `retry_delay=S` to retry the task in case of failure. The delay (in second) will double on each failure.
 
 ```python
 @register_task(retries=10, retry_delay=60)
-def send_email():
+def download_data():
     ...
 ```
 
@@ -144,22 +144,33 @@ def short_task():
 You can enqueue tasks with a specific due date.
 ```python
 @register_task()
-def my_task(name):
-    return f"Hello {name} !"
+def my_task():
+    ...
 
 # Enqueue tasks
-my_task.queue("John", due=timezone.now() + timedelta(hours=1))
+from datetime import datetime, timedelta
+my_task.queue("John", due=datetime.now() + timedelta(hours=1))
 ```
 
 ### Schedules
+
+You may define multiple schedules for the same task. In this case, it is mandatory to specify a unique name :
+
+```python
+@schedule_task(name="afternoon_routine", cron="30 16 * * *", args=['afternoon'])
+@schedule_task(name="morning_routine", cron="30 8 * * *", args=['morning'])
+@register_task()
+def my_task(time_of_day):
+    return f"Good {time_of_day} John !"
+```
 
 By default, `last_tick` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
 
 ```python
 @schedule_task(cron="30 8 * * *", run_on_creation=True)
 @register_task()
-def my_task(name):
-    return f"Good morning {name} !"
+def my_task():
+    ...
 ```
 
 By default, if some crons where missed (e.g. after a server shutdown or if the workers can't keep up with all tasks), the missed tasks will be lost. If you need the tasks to catch up, set `catch_up=True`.
@@ -167,24 +178,14 @@ By default, if some crons where missed (e.g. after a server shutdown or if the w
 ```python
 @schedule_task(cron="30 8 * * *", catch_up=True)
 @register_task()
-def my_task(name):
+def my_task():
     ...
 ```
 
-You may define multiple schedules for the same task. In this case, it is mandatory to specify a unique name :
+You may get the schedule's cron datetime provided as a keyword argument to the task using the `datetime_kwarg` argument. This is often useful in combination with catch_up, for things like report generation.
 
 ```python
-@schedule_task(name="morning_routine", cron="30 16 * * *", args=['morning'])
-@schedule_task(name="afternoon_routine", cron="30 8 * * *", args=['afternoon'])
-@register_task()
-def my_task(time):
-    return f"Good {time} John !"
-```
-
-You may get the schedule's cron datetime provided as a keyword argument to the task using the `datetime_kwarg` argument :
-
-```python
-@schedule_task(cron="30 8 * * *", datetime_kwarg="scheduled_on")
+@schedule_task(cron="30 8 * * *", datetime_kwarg="scheduled_on", catch_up=True)
 @register_task()
 def my_task(scheduled_on):
     return f"This was scheduled for {scheduled_on.isoformat()}."
@@ -193,8 +194,7 @@ def my_task(scheduled_on):
 Similarly to tasks, you can assign schedules to specific queues, and then have your worker only consume tasks from specific queues using `--queue myqueue` or `--exclude_queue myqueue`.
 
 ```python
-
-@register_schedule(queue='scheduler')
+@schedule_task(cron="30 8 * * *", queue='scheduler')
 @register_task(queue='worker')
 def task():
     ...
@@ -237,7 +237,7 @@ optional arguments:
 
 A demo project with pre-configured tasks is provided.
 
-```
+```shell
 python demoproject/manage.py migrate
 python demoproject/manage.py createsuperuser
 python demoproject/manage.py runserver
@@ -252,14 +252,12 @@ Then open http://127.0.0.1:8000/admin in your browser
 
 A queued email backend to send emails asynchronously, preventing your website from failing completely in case the upstream backend is down.
 
-#### Installation
-
 Enable and configure the app in `settings.py` :
 ```python
 INSTALLED_APPS = [
-    ...
+    # ...
     'django_toosimple_q.contrib.mail',
-    ...
+    # ...
 ]
 
 EMAIL_BACKEND = 'django_toosimple_q.contrib.mail.backends.QueueBackend'
@@ -268,6 +266,7 @@ EMAIL_BACKEND = 'django_toosimple_q.contrib.mail.backends.QueueBackend'
 TOOSIMPLEQ_EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 ```
 
+Head to the [Django documentation](https://docs.djangoproject.com/en/4.0/topics/email/) for usage.
 
 ## Dev
 
@@ -276,30 +275,28 @@ TOOSIMPLEQ_EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 To run tests locally (by default, tests runs against an in-memory sqlite database):
 
 ```shell
-$ pip install -r requirements-dev.txt
-$ python manage.py test
+pip install -r requirements-dev.txt
+python manage.py test
 ```
 
 To run tests against postgres, run the following commands before :
 ```shell
 # Start a local postgres database
-$ docker run -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
+docker run -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
 # Set and env var
-$ export TOOSIMPLEQ_TEST_DB=postgres # on Windows: `$Env:TOOSIMPLEQ_TEST_DB = "postgres"`
+export TOOSIMPLEQ_TEST_DB=postgres # on Windows: `$Env:TOOSIMPLEQ_TEST_DB = "postgres"`
 ```
 
 Tests are run automatically on github.
 
 
-
 ### Contribute
 
 Code style is done with pre-commit :
+```shell
+pip install -r requirements-dev.txt
+pre-commit install
 ```
-$ pip install -r requirements-dev.txt
-$ pre-commit install
-```
-
 
 ## Internals
 
@@ -323,7 +320,7 @@ $ pre-commit install
 - 2022-03-28 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
-  - feature: assign queues to schedules (`@register_schedule(queue="schedules")`)
+  - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
   - refactor: removed non-execution related data from the database (clarifying the fact tha the source of truth is the registry)
   - refactor: better support for concurrent workers
   - refactor: better names for models and decorators
