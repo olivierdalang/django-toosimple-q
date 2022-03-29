@@ -152,6 +152,28 @@ from datetime import datetime, timedelta
 my_task.queue("John", due=datetime.now() + timedelta(hours=1))
 ```
 
+The `queue()` function returns a `TaskExec` model instance, which holds information about the task execution, including the task result.
+
+```python
+from django.core.management import call_command
+from django_toosimple_q.models import TaskExec
+
+@register_task()
+def multiply(a, b):
+    return a * b
+
+t = multiply.queue(3, 4)
+
+assert t.state == TaskExec.States.QUEUED
+assert t.result == None
+
+call_command("worker", "--until_done")  # equivalent to `python manage.py worker --until_done`
+
+t.refresh_from_db()
+assert t.state == TaskExec.States.SUCCEEDED
+assert t.result == 12
+```
+
 ### Schedules
 
 You may define multiple schedules for the same task. In this case, it is mandatory to specify a unique name :
