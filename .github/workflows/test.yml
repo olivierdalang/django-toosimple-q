@@ -1,6 +1,10 @@
 name: test
 
-on: [push]
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * 0' # weekly
 
 jobs:
   test:
@@ -9,6 +13,7 @@ jobs:
 
     runs-on: ubuntu-latest
     strategy:
+      # see https://docs.djangoproject.com/en/4.1/faq/install/#what-python-version-can-i-use-with-django
       matrix:
         python-version:
         - "3.8"
@@ -17,9 +22,17 @@ jobs:
         django-version:
         - "3.2"
         - "4.0"
+        - "4.1"
         db-backend:
         - "sqlite"
         - "postgres"
+        include:
+        - django-version: "3.2"
+          python-version: "3.6"
+        - django-version: "3.2"
+          python-version: "3.7"
+        - django-version: "4.1"
+          python-version: "3.11"
       fail-fast: false
 
     services:
