@@ -339,10 +339,10 @@ pre-commit install
 
 ## Changelog
 
-- 2022-10-27 : v1.0.0b-1
+- 2022-10-27 : v1.0.0-beta.1
   - infra: updated compatibility to Django 4.1
 
-- 2022-03-28 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+- 2022-03-28 : v1.0.0-beta **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
