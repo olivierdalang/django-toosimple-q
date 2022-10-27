@@ -22,4 +22,6 @@ class TestReadme(TestCase):
                 exec(full_python_code)
             except Exception as e:
                 hr = "~" * 80
-                raise Exception(f"Invalid readme block:\n{hr}{python_block}{hr}") from e
+                raise Exception(
+                    f"Invalid readme block:\n{hr}\n{python_block}{hr}"
+                ) from e
