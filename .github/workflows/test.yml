@@ -1,25 +1,36 @@
 name: test
 
-on: [push]
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * 0' # weekly
 
 jobs:
   test:
 
-    name: Tests py${{ matrix.python-version }} / dj${{ matrix.django-version }} / ${{ matrix.db-backend }}
+    name: Tests dj${{ matrix.dj }} / ${{ matrix.db }} / py${{ matrix.py }}
 
     runs-on: ubuntu-latest
     strategy:
+      # all supported django version on lowest/highest supported python
+      # see https://docs.djangoproject.com/en/4.1/faq/install/#what-python-version-can-i-use-with-django
       matrix:
-        python-version:
-        - "3.8"
-        - "3.9"
-        - "3.10"
-        django-version:
-        - "3.2"
-        - "4.0"
-        db-backend:
-        - "sqlite"
-        - "postgres"
+        include:
+        - {dj: "3.2", db: "sqlite", py: "3.6"}
+        - {dj: "3.2", db: "sqlite", py: "3.10"}
+        - {dj: "3.2", db: "postgres", py: "3.6"}
+        - {dj: "3.2", db: "postgres", py: "3.10"}
+        - {dj: "4.0", db: "sqlite", py: "3.8"}
+        - {dj: "4.0", db: "sqlite", py: "3.10"}
+        - {dj: "4.0", db: "postgres", py: "3.8"}
+        - {dj: "4.0", db: "postgres", py: "3.10"}
+        - {dj: "4.1", db: "sqlite", py: "3.8"}
+        - {dj: "4.1", db: "sqlite", py: "3.10"}
+        # - {dj: "4.1", db: "sqlite", py: "3.11"} # not yet available on github actions
+        - {dj: "4.1", db: "postgres", py: "3.8"}
+        - {dj: "4.1", db: "postgres", py: "3.10"}
+        # - {dj: "4.1", db: "postgres", py: "3.11"} # not yet available on github actions
       fail-fast: false
 
     services:
@@ -37,16 +48,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python ${{ matrix.py }}
       uses: actions/setup-python@v1
       with:
-        python-version: ${{ matrix.python-version }}
+        py: ${{ matrix.py }}
     - name: Install pip
       run: |
         python -m pip install --upgrade pip
-    - name: Install Django ${{ matrix.django-version }}
+    - name: Install Django ${{ matrix.dj }}
       env:
-        DJANGO_VERSION: ${{ matrix.django-version }}
+        DJANGO_VERSION: ${{ matrix.dj }}
       run: |
         python -m pip install Django~=$DJANGO_VERSION
     - name: Install dependencies
@@ -55,6 +66,6 @@ jobs:
       uses: pre-commit/action@v2.0.2
     - name: Test
       env:
-        TOOSIMPLEQ_TEST_DB: ${{ matrix.db-backend }}
+        TOOSIMPLEQ_TEST_DB: ${{ matrix.db }}
       run: |
         python manage.py test
