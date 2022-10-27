@@ -1,0 +1,2 @@
+recursive-include django_toosimple_q *
+recursive-exclude django_toosimple_q *.pyc

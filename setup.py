@@ -23,7 +23,7 @@ setup(
     author="Olivier Dalang",
     author_email="olivier.dalang@gmail.com",
     url="https://github.com/olivierdalang/django-toosimple-q",
-    packages=find_packages(include=["django_toosimple_q"]),
+    packages=find_packages(include=["django_toosimple_q", "django_toosimple_q.*"]),
     include_package_data=True,
     install_requires=open("requirements.txt").readlines(),
     license="MIT",
