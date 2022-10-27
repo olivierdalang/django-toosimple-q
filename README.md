@@ -339,10 +339,7 @@ pre-commit install
 
 ## Changelog
 
-- 2022-10-27 : v1.0.0b1
-  - infra: updated compatibility to Django 4.1
-
-- 2022-03-28 : v1.0.0b0 **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+- 2022-10-28 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
@@ -351,7 +348,7 @@ pre-commit install
   - refactor: better names for models and decorators
   - infra: included a demo project
   - infra: improved testing, including for concurrency behaviour
-  - infra: updated compatibility to Django 3.2/4.0 and Python 3.8-3.18
+  - infra: updated compatibility to Django 3.2/4.1 and Python 3.8-3.10
   - quick migration guide:
     - rename `@schedule` -> `@schedule_task`
     - task name must now be provided as a kwarg: `@register_task("mytask")` -> `@register_task(name="mytask")`)
