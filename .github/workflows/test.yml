@@ -16,17 +16,21 @@ jobs:
       # all supported django version on lowest/highest supported python
       # see https://docs.djangoproject.com/en/4.1/faq/install/#what-python-version-can-i-use-with-django
       matrix:
-        db:
-        - "sqlite"
-        - "postgres"
         include:
-        - {dj: "3.2", py: "3.6"}
-        - {dj: "3.2", py: "3.10"}
-        - {dj: "4.0", py: "3.8"}
-        - {dj: "4.0", py: "3.10"}
-        - {dj: "4.1", py: "3.8"}
-        - {dj: "4.1", py: "3.10"}
-        # - {dj: "4.1", py: "3.11"} # not yet available on github actions
+        - {dj: "3.2", py: "3.6", db: "sqlite"}
+        - {dj: "3.2", py: "3.10", db: "sqlite"}
+        - {dj: "3.2", py: "3.6", db: "postgres"}
+        - {dj: "3.2", py: "3.10", db: "postgres"}
+        - {dj: "4.0", py: "3.8", db: "sqlite"}
+        - {dj: "4.0", py: "3.10", db: "sqlite"}
+        - {dj: "4.0", py: "3.8", db: "postgres"}
+        - {dj: "4.0", py: "3.10", db: "postgres"}
+        - {dj: "4.1", py: "3.8", db: "sqlite"}
+        - {dj: "4.1", py: "3.10", db: "sqlite"}
+        # - {dj: "4.1", py: "3.11", db: "sqlite"} # not yet available on github actions
+        - {dj: "4.1", py: "3.8", db: "postgres"}
+        - {dj: "4.1", py: "3.10", db: "postgres"}
+        # - {dj: "4.1", py: "3.11", db: "postgres"} # not yet available on github actions
       fail-fast: false
 
     services:
