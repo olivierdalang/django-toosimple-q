@@ -1,6 +1,6 @@
 """Settings for running tests"""
 
-"""Settings overrides for testing concurrent workers"""
+import os
 
 from .utils import is_postgres
 
@@ -9,13 +9,12 @@ USE_TZ = True
 TIME_ZONE = "UTC"
 SECRET_KEY = "secret_key"
 
-
 if is_postgres():
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "HOST": "127.0.0.1",
-            "PORT": "5432",
+            "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
+            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
             "NAME": "postgres",
             "USER": "postgres",
             "PASSWORD": "postgres",

@@ -9,7 +9,6 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Case, Value, When
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
 
 from ...logging import logger
 from ...models import ScheduleExec, TaskExec, WorkerStatus
@@ -18,7 +17,7 @@ from ...registry import schedules_registry, tasks_registry
 
 class Command(BaseCommand):
 
-    help = _("Run tasks an schedules")
+    help = "Run tasks and schedules"
 
     def add_arguments(self, parser):
         queue = parser.add_mutually_exclusive_group()

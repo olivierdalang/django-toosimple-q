@@ -1,6 +1,7 @@
 import os
 import signal
 import subprocess
+from typing import List
 
 from django.contrib.auth.models import User
 from django.core import mail
@@ -11,7 +12,6 @@ from django_toosimple_q.models import ScheduleExec, TaskExec
 from django_toosimple_q.registry import schedules_registry, tasks_registry
 
 from ..logging import logger
-from .utils import is_postgres, prepare_toxiproxy
 
 
 class TooSimpleQTestCaseMixin:
@@ -103,30 +103,49 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
     Base TransactionTestCase for TooSimpleQ.
 
     - Ensures the database is accessible from background workers (transactiontestcase do no wrap tests in transactions)
-    - Starts a toxiproy to simulate latency for the background workers
     - Adds some helpers methods to manage the workers
 
     See TooSimpleQTestCaseMixin.
     """
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        if is_postgres():
-            prepare_toxiproxy()
+    def setUp(self):
+        super().setUp()
+        self.processes: List[subprocess.Popen] = []
 
-    def workers_start_in_background(self, queue=None, count=1):
+    def tearDown(self):
+        super().tearDown()
+        open_processes = [p for p in self.processes if p.poll() is None]
+        if open_processes:
+            print(f"Killing {len(open_processes)} dangling worker processes...")
+        for process in open_processes:
+            process.kill()
+
+    def workers_start_in_background(
+        self,
+        count=1,
+        queue=None,
+        tick=None,
+        until_done=True,
+        skip_checks=True,
+    ):
         """Starts N workers in the background on the specified queue."""
 
         environ = {
             **os.environ,
             "DJANGO_SETTINGS_MODULE": "django_toosimple_q.tests.concurrency.settings",
         }
-        command = ["python", "manage.py", "worker", "--until_done", "--skip-checks"]
-        if queue:
-            command.extend(["--queue", queue])
 
-        self.processes = []
+        command = ["python", "manage.py", "worker"]
+
+        if tick:
+            command.extend(["--tick", str(tick)])
+        if queue:
+            command.extend(["--queue", str(queue)])
+        if until_done:
+            command.extend(["--until_done"])
+        if skip_checks:
+            command.extend(["--skip-checks"])
+
         for _ in range(count):
             self.processes.append(
                 subprocess.Popen(
@@ -134,7 +153,7 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
                     encoding="utf-8",
                     env=environ,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
                 )
             )
 

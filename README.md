@@ -301,12 +301,12 @@ pip install -r requirements-dev.txt
 python manage.py test
 ```
 
-To run tests against postgres, run the following commands before :
+To run tests against postgres, we recommend using Docker :
 ```shell
-# Start a local postgres database
-docker run -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
-# Set and env var
-export TOOSIMPLEQ_TEST_DB=postgres # on Windows: `$Env:TOOSIMPLEQ_TEST_DB = "postgres"`
+docker compose build
+docker compose run django
+# or to run just a specific test
+docker compose run django test django_toosimple_q.tests.tests_worker.TestAutoreloadingWorker
 ```
 
 Tests are run automatically on github.
@@ -339,7 +339,7 @@ pre-commit install
 
 ## Changelog
 
-- 2022-10-28 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+- 2023-01-09 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
