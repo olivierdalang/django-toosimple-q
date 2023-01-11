@@ -28,3 +28,8 @@ def create_user():
 def sleep_task(duration):
     time.sleep(duration)
     return True
+
+
+@register_task(name="output_string_task", queue="tasks")
+def output_string_task():
+    return "***OUTPUT_A***"

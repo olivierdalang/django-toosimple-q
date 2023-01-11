@@ -1,4 +1,5 @@
 import datetime
+from typing import List
 
 from django.db import models
 from django.utils import timezone
@@ -44,6 +45,20 @@ class TaskExec(models.Model):
                 return "⚠️"
             else:
                 return "❓"
+
+        @classmethod
+        def todo(cls) -> List[str]:
+            """A list of values that are not done (opposite of done)"""
+            return [
+                cls.SLEEPING.value,
+                cls.QUEUED.value,
+                cls.PROCESSING.value,
+            ]
+
+        @classmethod
+        def done(cls) -> List[str]:
+            """A list of values that are done (opposite of todo)"""
+            return [v for v in cls.values if v not in cls.todo()]
 
     id = models.BigAutoField(primary_key=True)
     task_name = models.CharField(max_length=1024)

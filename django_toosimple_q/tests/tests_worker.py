@@ -1,10 +1,13 @@
+import inspect
+
 from django.core import management
 from freezegun import freeze_time
 
 from django_toosimple_q.decorators import register_task
-from django_toosimple_q.models import WorkerStatus
+from django_toosimple_q.models import TaskExec, WorkerStatus
 
-from .base import TooSimpleQRegularTestCase
+from .base import TooSimpleQBackgroundTestCase, TooSimpleQRegularTestCase
+from .concurrency.tasks import output_string_task
 
 
 class TestWorker(TooSimpleQRegularTestCase):
@@ -48,3 +51,62 @@ class TestWorker(TooSimpleQRegularTestCase):
 
     # TODO: test for worker timeout status
     # TODO: test for no label/pid clashes with multiple workers
+
+
+class TestAutoreloadingWorker(TooSimpleQBackgroundTestCase):
+    def _rewrite_function_in_place(self, old_text, new_text):
+        path = inspect.getfile(output_string_task)
+        with open(path, "r") as f:
+            contents = f.read()
+        contents = contents.replace(old_text, new_text)
+        with open(path, "w") as f:
+            f.write(contents)
+
+    def test_schedules(self):
+        # Start a worker
+        self.workers_start_in_background(
+            queue="tasks",
+            count=1,
+            tick=0.1,
+            until_done=False,
+            reload="always",
+            verbosity=3,
+        )
+
+        # Running the task
+        output_string_task.queue()
+        self.wait_for_tasks()
+
+        # Hot-changing the file, should reload the worker, and from now yield other results
+        self._rewrite_function_in_place("***OUTPUT_A***", "***OUTPUT_B***")
+
+        # Running the task
+        output_string_task.queue()
+        self.wait_for_tasks()
+
+        # Hot-changing the file, should reload the worker, and from now yield other results
+        self._rewrite_function_in_place("***OUTPUT_B***", "***OUTPUT_A***")
+
+        # Running the task
+        output_string_task.queue()
+        self.wait_for_tasks()
+
+        # Stop the worker
+        self.workers_gracefully_stop()
+
+        # Get the output
+        output = self.workers_wait_for_success()
+
+        self.assertTrue(
+            "tasks.py changed, reloading." in output,
+            f"Output does not contain any mention of file change.\n"
+            f"Full output:\n{output}",
+        )
+        self.assertEqual(
+            [
+                t.result
+                for t in TaskExec.objects.order_by("created", "started", "finished")
+            ],
+            ["***OUTPUT_A***", "***OUTPUT_B***", "***OUTPUT_A***"],
+            f"Full output:\n{output}",
+        )

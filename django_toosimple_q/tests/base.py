@@ -1,6 +1,7 @@
 import os
 import signal
 import subprocess
+import time
 from typing import List
 
 from django.contrib.auth.models import User
@@ -114,11 +115,9 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
 
     def tearDown(self):
         super().tearDown()
-        open_processes = [p for p in self.processes if p.poll() is None]
-        if open_processes:
-            print(f"Killing {len(open_processes)} dangling worker processes...")
-        for process in open_processes:
-            process.kill()
+
+        self.workers_gracefully_stop()
+        self.workers_kill()
 
     def workers_start_in_background(
         self,
@@ -127,6 +126,8 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
         tick=None,
         until_done=True,
         skip_checks=True,
+        reload="never",
+        verbosity=None,
     ):
         """Starts N workers in the background on the specified queue."""
 
@@ -145,6 +146,10 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
             command.extend(["--until_done"])
         if skip_checks:
             command.extend(["--skip-checks"])
+        if reload:
+            command.extend(["--reload", str(reload)])
+        if verbosity:
+            command.extend(["--verbosity", str(verbosity)])
 
         for _ in range(count):
             self.processes.append(
@@ -157,16 +162,38 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
                 )
             )
 
-    def workers_wait_for_success(self):
-        """Waits for all processes to finish, and assert they succeeded."""
+    def wait_for_tasks(self, timeout=15):
+        """Waits untill all tasks are marked as done in the database"""
 
-        self.stdouts, self.stderrs = [], []
+        start_time = time.time()
+        todo_tasks = TaskExec.objects.filter(state__in=TaskExec.States.todo())
+        while todo_tasks.exists():
+            if (time.time() - start_time) > timeout:
+                raise Exception(
+                    f"{todo_tasks.count()} task(s) did not finish in {timeout} seconds"
+                )
+
+    def workers_wait_for_success(self):
+        """Waits for all processes to finish, assert they succeeded, and returns output of the last process."""
+
+        last_stdout = None
+        error_count = 0
         for process in self.processes:
-            stdout, stderr = process.communicate(timeout=15)
-            self.stdouts.append(stdout)
-            self.stderrs.append(stderr)
-            process.wait()
-        self.workers_assert_no_error()
+            try:
+                last_stdout, _ = process.communicate(timeout=15)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                last_stdout, _ = process.communicate()
+            if process.returncode != 0:
+                error_count += 1
+
+        if error_count:
+            logger.warn(f"Full output of last stdout:\n{last_stdout}")
+            raise AssertionError(
+                f"{error_count} out of { len(self.processes)} workers errored!"
+            )
+
+        return last_stdout
 
     def workers_gracefully_stop(self):
         """Gracefully stops all workers (note that you must still wait for them to finish using wait_for_success)."""
@@ -180,14 +207,13 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
             else:
                 process.send_signal(signal.SIGTERM)
 
-    def workers_assert_no_error(self):
-        error_count = len([p for p in self.processes if p.returncode != 0])
-        total_count = len(self.processes)
-        if error_count:
-            # show last output
-            def indent(txt):
-                return "\n".join([" >  " + l for l in txt.splitlines()])
+    def workers_kill(self):
+        """Forces kill all processes (use this for cleanup)"""
 
-            logger.exception("\n" + indent(self.stdouts[-1]))
-            logger.exception("\n" + indent(self.stderrs[-1]))
-            raise AssertionError(f"{error_count} out of {total_count} workers errored!")
+        open_processes = [p for p in self.processes if p.poll() is None]
+        if not open_processes:
+            return
+
+        logger.warn(f"Killing {len(open_processes)} dangling worker processes...")
+        for process in open_processes:
+            process.kill()
