@@ -5,10 +5,11 @@ import signal
 import sys
 import time
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Case, Value, When
-from django.utils import timezone
+from django.utils import autoreload, timezone
 
 from ...logging import logger
 from ...models import ScheduleExec, TaskExec, WorkerStatus
@@ -62,6 +63,12 @@ class Command(BaseCommand):
             type=float,
             help="the time in seconds after which this worker will be considered offline (set this to a value higher than the longest tasks this worker will execute)",
         )
+        parser.add_argument(
+            "--reload",
+            choices=["default", "always", "never"],
+            default="default",
+            help="watch for changes (by default, watches if DEBUG=True)",
+        )
 
     def handle(self, *args, **options):
 
@@ -101,6 +108,17 @@ class Command(BaseCommand):
                 "timeout": datetime.timedelta(seconds=self.timeout),
             },
         )
+
+        if options["reload"] == "always" or (
+            settings.DEBUG and options["reload"] == "default"
+        ):
+            logger.info(f"Running with reloader !")
+            autoreload.run_with_reloader(self.inner_run, options)
+        else:
+            self.inner_run(options)
+
+    def inner_run(self, options):
+        autoreload.raise_last_exception()
 
         try:
             last_run = timezone.now()

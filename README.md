@@ -13,6 +13,7 @@ Features :
 - simple queuing syntax
 - cron-like scheduling
 - tasks.py autodiscovery
+- supports autoreload
 - django admin integration
 - tasks results stored using the Django ORM
 
@@ -236,6 +237,7 @@ usage: manage.py worker [--queue QUEUE | --exclude_queue EXCLUDE_QUEUE]
                         [--once | --until_done]
                         [--label LABEL]
                         [--timeout TIMEOUT]
+                        [--reload {always,never}]
 
 optional arguments:
   --queue QUEUE         which queue to run (can be used several times, all
@@ -253,6 +255,8 @@ optional arguments:
   --timeout TIMEOUT     the time in seconds after which this worker will be considered
                         offline (set this to a value higher than the longest tasks this
                         worker will execute)
+  --reload {always,never}
+                        watch for changes (by default, watches if DEBUG=True)
 ```
 
 ## Demo project
@@ -343,6 +347,7 @@ pre-commit install
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
+  - feature: auto-reload when DEBUG is true
   - refactor: removed non-execution related data from the database (clarifying the fact tha the source of truth is the registry)
   - refactor: better support for concurrent workers
   - refactor: better names for models and decorators
