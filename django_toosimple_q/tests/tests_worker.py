@@ -1,6 +1,8 @@
 import inspect
+from datetime import timedelta
 
 from django.core import management
+from django.utils.timezone import now
 from freezegun import freeze_time
 
 from django_toosimple_q.decorators import register_task
@@ -67,28 +69,33 @@ class TestAutoreloadingWorker(TooSimpleQBackgroundTestCase):
         self.workers_start_in_background(
             queue="tasks",
             count=1,
-            tick=0.1,
+            tick=1,
             until_done=False,
             reload="always",
             verbosity=3,
         )
 
-        # Running the task
-        output_string_task.queue()
+        # The reloader needs some time to initially start up and to reload. This
+        # means we must wait a little otherwise it won't pick up changes.
+        # FIXME: for some reason, this seems required only with sqlite
+        RELOADER_WAIT = timedelta(seconds=10)
+
+        # Running the task with delay
+        output_string_task.queue(due=now() + RELOADER_WAIT)
         self.wait_for_tasks()
 
         # Hot-changing the file, should reload the worker, and from now yield other results
         self._rewrite_function_in_place("***OUTPUT_A***", "***OUTPUT_B***")
 
-        # Running the task
-        output_string_task.queue()
+        # Running the task with delay
+        output_string_task.queue(due=now() + RELOADER_WAIT)
         self.wait_for_tasks()
 
         # Hot-changing the file, should reload the worker, and from now yield other results
         self._rewrite_function_in_place("***OUTPUT_B***", "***OUTPUT_A***")
 
-        # Running the task
-        output_string_task.queue()
+        # Running the task with delay
+        output_string_task.queue(due=now() + RELOADER_WAIT)
         self.wait_for_tasks()
 
         # Stop the worker
@@ -100,7 +107,7 @@ class TestAutoreloadingWorker(TooSimpleQBackgroundTestCase):
         self.assertTrue(
             "tasks.py changed, reloading." in output,
             f"Output does not contain any mention of file change.\n"
-            f"Full output:\n{output}",
+            f"If getting inconsistent results, consider increasing RELOADER_WAIT.\nFull output:\n{output}",
         )
         self.assertEqual(
             [
@@ -108,5 +115,5 @@ class TestAutoreloadingWorker(TooSimpleQBackgroundTestCase):
                 for t in TaskExec.objects.order_by("created", "started", "finished")
             ],
             ["***OUTPUT_A***", "***OUTPUT_B***", "***OUTPUT_A***"],
-            f"Full output:\n{output}",
+            f"If getting inconsistent results, consider increasing RELOADER_WAIT.\nFull output:\n{output}",
         )
