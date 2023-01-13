@@ -205,13 +205,16 @@ def my_task():
     ...
 ```
 
-You may get the schedule's cron datetime provided as a keyword argument to the task using the `datetime_kwarg` argument. This is often useful in combination with catch_up, for things like report generation.
+You may get the schedule's cron datetime provided as a keyword argument to the task using the `datetime_kwarg` argument. This is often useful in combination with catch_up, for things like report generation. Remember to treat the case where the argument is `None` (which happens when the task is run outside of the schedule).
 
 ```python
 @schedule_task(cron="30 8 * * *", datetime_kwarg="scheduled_on", catch_up=True)
 @register_task()
 def my_task(scheduled_on):
-    return f"This was scheduled for {scheduled_on.isoformat()}."
+    if scheduled_on:
+        return f"This was scheduled for {scheduled_on.isoformat()}."
+    else:
+        return "This was not scheduled."
 ```
 
 Similarly to tasks, you can assign schedules to specific queues, and then have your worker only consume tasks from specific queues using `--queue myqueue` or `--exclude_queue myqueue`.
