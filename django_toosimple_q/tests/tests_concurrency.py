@@ -83,7 +83,7 @@ class ConcurrencyTest(TooSimpleQBackgroundTestCase):
         self.workers_gracefully_stop()
 
         # Wait for the background process to finish
-        self.workers_wait_for_success()
+        self.processes[0].wait(timeout=5)
 
         # Check that the state is correctly set to interrupted and that a replacing task was added
         t.refresh_from_db()
