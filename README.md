@@ -16,6 +16,7 @@ Features :
 - supports autoreload
 - django admin integration
 - tasks results stored using the Django ORM
+- replacement tasks on interruption
 
 Limitations :
 
@@ -350,6 +351,8 @@ pre-commit install
 ## Changelog
 
 - 2023-01-09 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+  - known issues:
+    - [ ] worker exit status not correctly set with autoreload
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)

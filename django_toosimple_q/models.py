@@ -43,8 +43,7 @@ class TaskExec(models.Model):
                 return "🛑"
             elif state == cls.INVALID:
                 return "⚠️"
-            else:
-                return "❓"
+            raise NotImplementedError(f"Unknown state: {state}")
 
         @classmethod
         def todo(cls) -> List[str]:
@@ -121,8 +120,7 @@ class ScheduleExec(models.Model):
                 return "🟢"
             elif state == cls.INVALID:
                 return "⚠️"
-            else:
-                return "❓"
+            raise NotImplementedError(f"Unknown state: {state}")
 
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
@@ -158,21 +156,31 @@ class WorkerStatus(models.Model):
         verbose_name = "Worker Status"
         verbose_name_plural = "Workers Statuses"
 
+    class ExitCodes(models.IntegerChoices):
+        STOPPED = 0, _("Stopped")
+        TERMINATED = 77, _("Terminated")
+        CRASHED = 99, _("Crashed")
+
     class States(models.TextChoices):
         ONLINE = "ONLINE", _("Online")
-        OFFLINE = "OFFLINE", _("Offline")
+        STOPPED = "STOPPED", _("Stopped")
+        TERMINATED = "TERMINATED", _("Terminated")
+        CRASHED = "CRASHED", _("Crashed")
         TIMEDOUT = "TIMEDOUT", _("Timedout")
 
         @classmethod
         def icon(cls, state):
             if state == cls.ONLINE:
                 return "🟢"
-            elif state == cls.OFFLINE:
+            elif state == cls.STOPPED:
                 return "⚪"
-            elif state == cls.TIMEDOUT:
+            elif state == cls.TERMINATED:
+                return "🟧"
+            elif state == cls.CRASHED:
                 return "🟥"
-            else:
+            elif state == cls.TIMEDOUT:
                 return "❓"
+            raise NotImplementedError(f"Unknown state: {state}")
 
     id = models.BigAutoField(primary_key=True)
     label = models.CharField(max_length=1024, unique=True)
@@ -182,18 +190,25 @@ class WorkerStatus(models.Model):
     last_tick = models.DateTimeField(default=timezone.now)
     started = models.DateTimeField(default=timezone.now)
     stopped = models.DateTimeField(null=True, blank=True)
-
-    def __str__(self):
-        return f"Worker '{self.label}' {self.icon}"
+    exit_code = models.IntegerField(choices=ExitCodes.choices, null=True, blank=True)
+    exit_log = models.TextField(null=True, blank=True)
 
     @property
     def state(self):
         if self.stopped:
-            return WorkerStatus.States.OFFLINE
+            if self.exit_code == WorkerStatus.ExitCodes.STOPPED:
+                return WorkerStatus.States.STOPPED
+            elif self.exit_code == WorkerStatus.ExitCodes.TERMINATED:
+                return WorkerStatus.States.TERMINATED
+            else:
+                return WorkerStatus.States.CRASHED
         elif self.last_tick < timezone.now() - self.timeout:
             return WorkerStatus.States.TIMEDOUT
         else:
             return WorkerStatus.States.ONLINE
+
+    def __str__(self):
+        return f"Worker '{self.label}' {self.icon}"
 
     @property
     def icon(self):

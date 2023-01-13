@@ -130,6 +130,8 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
         skip_checks=True,
         reload="never",
         verbosity=None,
+        label=None,
+        timeout=None,
     ):
         """Starts N workers in the background on the specified queue."""
 
@@ -146,6 +148,8 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
 
         command = ["python", "manage.py", "worker"]
 
+        if label:
+            command.extend(["--label", str(label)])
         if tick:
             command.extend(["--tick", str(tick)])
         if queue:
@@ -158,6 +162,8 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
             command.extend(["--reload", str(reload)])
         if verbosity:
             command.extend(["--verbosity", str(verbosity)])
+        if timeout:
+            command.extend(["--timeout", str(timeout)])
 
         for _ in range(count):
             self.processes.append(
@@ -170,16 +176,24 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
                 )
             )
 
-    def wait_for_tasks(self, timeout=15):
-        """Waits untill all tasks are marked as done in the database"""
-
+    def wait_for_qs(self, queryset, exists=True, timeout=15):
+        """Waits until the queryset exists (or does not exist)"""
         start_time = time.time()
-        todo_tasks = TaskExec.objects.filter(state__in=TaskExec.States.todo())
-        while todo_tasks.exists():
+        while queryset.exists() == (not exists):
             if (time.time() - start_time) > timeout:
                 raise Exception(
-                    f"{todo_tasks.count()} task(s) did not finish in {timeout} seconds"
+                    f"Expected queryset was not present after {timeout} seconds"
+                    if exists
+                    else f"Unexpected queryset was still present after {timeout} seconds"
                 )
+
+    def wait_for_tasks(self, timeout=15):
+        """Waits untill all tasks are marked as done in the database"""
+        return self.wait_for_qs(
+            TaskExec.objects.filter(state__in=TaskExec.States.todo()),
+            exists=False,
+            timeout=timeout,
+        )
 
     def workers_wait_for_success(self):
         """Waits for all processes to finish, assert they succeeded, and returns output of the last process."""

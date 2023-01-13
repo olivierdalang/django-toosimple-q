@@ -2,11 +2,10 @@ import datetime
 import logging
 import os
 import signal
-import sys
-import time
+from traceback import format_exc
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Case, Value, When
 from django.utils import autoreload, timezone
@@ -14,10 +13,10 @@ from django.utils import autoreload, timezone
 from ...logging import logger
 from ...models import ScheduleExec, TaskExec, WorkerStatus
 from ...registry import schedules_registry, tasks_registry
+from ...tests.utils import FakeException
 
 
 class Command(BaseCommand):
-
     help = "Run tasks and schedules"
 
     def add_arguments(self, parser):
@@ -59,7 +58,7 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--timeout",
-            default=3600,
+            default=60 * 5,
             type=float,
             help="the time in seconds after which this worker will be considered offline (set this to a value higher than the longest tasks this worker will execute)",
         )
@@ -71,17 +70,26 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-
-        # Handle SIGTERM and SIGINT (default_int_handler raises KeyboardInterrupt)
-        # see https://stackoverflow.com/a/40785230
-        signal.signal(signal.SIGINT, signal.default_int_handler)
+        # Handle interuption signals
+        signal.signal(signal.SIGINT, self.handle_signal)
+        # signal.signal(signal.SIGTERM, self.handle_signal)
         signal.signal(signal.SIGTERM, signal.default_int_handler)
+        # for simulating an exception in tests
+        signal.signal(signal.SIGUSR1, self.handle_signal)
+        # Handle termination (raises KeyboardInterrupt)
+        # Custom signal to provoke an artifical exception, used for testing only
+
+        # We store the PID in the environment, so it can be reused accross reloads
+        pid = os.environ.setdefault("TOOSIMPLEQ_PID", f"{os.getpid()}")
 
         self.queues = options["queue"] or []
         self.excluded_queues = options["exclude_queue"] or []
         self.tick_duration = options["tick"]
-        self.label = options["label"].replace(r"{pid}", str(os.getpid()))
+        self.label = options["label"].replace(r"{pid}", pid)
         self.timeout = options["timeout"]
+        self.exit_requested = False
+        self.simulate_exception = False
+        self.current_task_exec = None
 
         logger.info(f"Starting worker '{self.label}'...")
         if self.queues:
@@ -97,18 +105,6 @@ class Command(BaseCommand):
         else:
             logger.setLevel(logging.DEBUG)
 
-        # On startup, we report the worker went online
-        self.worker_status, _ = WorkerStatus.objects.update_or_create(
-            label=self.label,
-            defaults={
-                "started": timezone.now(),
-                "stopped": None,
-                "included_queues": self.queues,
-                "excluded_queues": self.excluded_queues,
-                "timeout": datetime.timedelta(seconds=self.timeout),
-            },
-        )
-
         if options["reload"] == "always" or (
             settings.DEBUG and options["reload"] == "default"
         ):
@@ -120,9 +116,30 @@ class Command(BaseCommand):
     def inner_run(self, options):
         autoreload.raise_last_exception()
 
+        # On startup, we report the worker went online
+        self.worker_status, _ = WorkerStatus.objects.update_or_create(
+            label=self.label,
+            defaults={
+                "started": timezone.now(),
+                "stopped": None,
+                "exit_code": None,
+                "exit_log": None,
+                "included_queues": self.queues,
+                "excluded_queues": self.excluded_queues,
+                "timeout": datetime.timedelta(seconds=self.timeout),
+            },
+        )
+
         try:
             last_run = timezone.now()
-            while True:
+            while not self.exit_requested:
+                if self.exit_requested:
+                    break
+
+                # for testing
+                if self.simulate_exception:
+                    raise FakeException()
+
                 did_something = self.tick()
 
                 if options["once"]:
@@ -135,17 +152,29 @@ class Command(BaseCommand):
 
                 if not did_something:
                     logger.debug(f"Waiting for next tick...")
-                    dt = (timezone.now() - last_run).total_seconds()
-                    time.sleep(max(0, self.tick_duration - dt))
+                    next_run = last_run + datetime.timedelta(seconds=self.tick_duration)
+                    while not self.exit_requested and timezone.now() < next_run:
+                        pass
 
                 last_run = timezone.now()
+
+            logger.critical(f"Gracefully finished")
+            self.worker_status.exit_code = WorkerStatus.ExitCodes.STOPPED.value
+            self.worker_status.exit_log = ""
         except (KeyboardInterrupt, SystemExit):
-            logger.critical(f"Exiting at user's request")
-            sys.exit(0)
+            logger.critical(f"Terminated by user request")
+            self.worker_status.exit_code = WorkerStatus.ExitCodes.TERMINATED.value
+            self.worker_status.exit_log = format_exc()
+        except Exception as e:
+            logger.critical(f"Crashed unhandled exception: {e}")
+            self.worker_status.exit_code = WorkerStatus.ExitCodes.CRASHED.value
+            self.worker_status.exit_log = format_exc()
         finally:
-            # On exit (or other error), we report the worker went offline
             self.worker_status.stopped = timezone.now()
             self.worker_status.save()
+
+        if self.worker_status.exit_code:
+            raise CommandError(returncode=self.worker_status.exit_code)
 
     def tick(self):
         """Returns True if something happened (so you can loop for testing)"""
@@ -204,16 +233,36 @@ class Command(BaseCommand):
         tasks_execs = tasks_execs.filter(task_name__in=[t.name for t in tasks_to_check])
         tasks_execs = tasks_execs.order_by(order_by_priority_clause, "due", "created")
         with transaction.atomic():
-            task_exec = tasks_execs.select_for_update().first()
-            if task_exec:
-                logger.debug(f"{task_exec} is due !")
-                task_exec.started = timezone.now()
-                task_exec.state = TaskExec.States.PROCESSING
-                task_exec.worker = self.worker_status
-                task_exec.save()
+            self.current_task_exec = tasks_execs.select_for_update().first()
+            if self.current_task_exec:
+                logger.debug(f"{self.current_task_exec} is due !")
+                self.current_task_exec.started = timezone.now()
+                self.current_task_exec.state = TaskExec.States.PROCESSING
+                self.current_task_exec.worker = self.worker_status
+                self.current_task_exec.save()
 
-        if task_exec:
-            task = tasks_registry[task_exec.task_name]
-            did_something |= task.execute(task_exec)
+        if self.current_task_exec:
+            task = tasks_registry[self.current_task_exec.task_name]
+            self.current_task = task
+            did_something |= task.execute(self.current_task_exec)
+            self.current_task_exec = None
 
         return did_something
+
+    def handle_signal(self, sig, stackframe):
+        # For testing, simulates a unexpected crash of the worker
+        if sig == signal.SIGUSR1:
+            self.simulate_exception = True
+            return
+
+        # A termination signal or a second interruption signal should force exit
+        if sig == signal.SIGTERM or (sig == signal.SIGINT and self.exit_requested):
+            logger.critical(f"User requested termination...")
+            raise KeyboardInterrupt()
+
+        # A first interruption signal is graceful exit
+        if sig == signal.SIGINT:
+            logger.critical(f"User requested graceful exit...")
+            if self.current_task_exec is not None:
+                logger.critical(f"Waiting for `{self.current_task_exec}` to finish...")
+            self.exit_requested = True
