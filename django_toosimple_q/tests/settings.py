@@ -36,14 +36,15 @@ else:
     }
 
 INSTALLED_APPS = [
+    "django_toosimple_q.tests.concurrency",
+    "django_toosimple_q.tests.demo",
+    "django_toosimple_q",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.messages",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
-    "django_toosimple_q",
-    "django_toosimple_q.tests.concurrency",
 ]
 
 ROOT_URLCONF = "django_toosimple_q.tests.urls"

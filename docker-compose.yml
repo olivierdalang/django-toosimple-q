@@ -2,7 +2,36 @@
 
 version: "3"
 
+x-default-django:
+  &default-django
+  build:
+    context: .
+    args:
+      TOOSIMPLEQ_DJ_VERSION: ${TOOSIMPLEQ_DJ_VERSION:-4.1}
+      TOOSIMPLEQ_PY_VERSION: ${TOOSIMPLEQ_PY_VERSION:-3.11}
+  depends_on:
+    - postgres
+    - toxiproxy-config
+  environment:
+    TOOSIMPLEQ_TEST_DB: ${TOOSIMPLEQ_TEST_DB:-postgres}
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: 5432
+    POSTGRES_HOST_WORKER: postgres-laggy
+    POSTGRES_PORT_WORKER: 5433
+  volumes:
+    - .:/app
+
 services:
+
+  django:
+    <<: *default-django
+    command: runserver 0.0.0.0:8000
+    ports:
+      - 8000:8000
+
+  worker:
+    <<: *default-django
+    command: worker --queue demo --reload never
 
   postgres:
     image: postgres
@@ -31,21 +60,3 @@ services:
         docker exec django-toosimple-q-postgres-laggy-1 /toxiproxy-cli create -l 0.0.0.0:5433 -u postgres:5432 postgres
         docker exec django-toosimple-q-postgres-laggy-1 /toxiproxy-cli toxic add -t latency -n my_lag -a latency=100 -a jitter=5 postgres
       '
-
-  django:
-    build:
-      context: .
-      args:
-        TOOSIMPLEQ_DJ_VERSION: ${TOOSIMPLEQ_DJ_VERSION:-4.1}
-        TOOSIMPLEQ_PY_VERSION: ${TOOSIMPLEQ_PY_VERSION:-3.11}
-    depends_on:
-      - postgres
-      - toxiproxy-config
-    environment:
-      TOOSIMPLEQ_TEST_DB: ${TOOSIMPLEQ_TEST_DB:-postgres}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_HOST_WORKER: postgres-laggy
-      POSTGRES_PORT_WORKER: 5433
-    volumes:
-      - .:/app

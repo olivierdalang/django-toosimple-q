@@ -7,7 +7,7 @@ WORKDIR /app
 # Install app in editable mode
 ADD ./requirements.txt /app/requirements.txt
 ADD ./requirements-dev.txt /app/requirements-dev.txt
-ADD ./README.md /app/README.md
+RUN touch /app/README.md
 ADD ./django_toosimple_q/__init__.py /app/django_toosimple_q/__init__.py
 ADD ./setup.py /app/setup.py
 RUN pip install -r requirements-dev.txt
@@ -21,4 +21,4 @@ ADD . /app
 
 # Default command runs tests
 ENTRYPOINT ["python", "manage.py"]
-CMD ["test", "--no-input"]
+CMD ["--help"]

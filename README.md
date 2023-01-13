@@ -262,19 +262,6 @@ optional arguments:
                         watch for changes (by default, watches if DEBUG=True)
 ```
 
-## Demo project
-
-A demo project with pre-configured tasks is provided.
-
-```shell
-python demoproject/manage.py migrate
-python demoproject/manage.py createsuperuser
-python demoproject/manage.py runserver
-python demoproject/manage.py worker  # from a different shell
-```
-
-Then open http://127.0.0.1:8000/admin in your browser
-
 ## Contrib apps
 
 ### django_toosimple_q.contrib.mail
@@ -299,25 +286,41 @@ Head to the [Django documentation](https://docs.djangoproject.com/en/4.0/topics/
 
 ## Dev
 
-### Tests
+### Automated tests
 
-To run tests locally (by default, tests runs against an in-memory sqlite database):
-
-```shell
-pip install -r requirements-dev.txt
-python manage.py test
-```
-
-To run tests against postgres, we recommend using Docker :
+To run tests, we recommend using Docker :
 ```shell
 docker compose build
-docker compose run django
+# run all tests
+docker compose run django test
 # or to run just a specific test
 docker compose run django test django_toosimple_q.tests.tests_worker.TestAutoreloadingWorker
 ```
 
 Tests are run automatically on github.
 
+### Manual testing
+
+Manual testing can be done like this:
+
+```shell
+# start a dev server and a worker
+docker compose build
+docker compose run django migrate
+docker compose run django createsuperuser
+docker compose up
+```
+
+Then connect on 127.0.0.1:8000/admin/
+
+### Without docker
+
+To run tests locally without Docker (by default, tests runs against an in-memory sqlite database):
+
+```shell
+pip install -r requirements-dev.txt
+python manage.py test
+```
 
 ### Contribute
 

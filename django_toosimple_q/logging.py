@@ -3,7 +3,7 @@ import logging
 from .registry import schedules_registry, tasks_registry
 
 formatter = logging.Formatter(
-    fmt="[%(asctime)s %(levelname)s] [toosimpleq] %(message)s"
+    "[%(asctime)s %(levelname)s] [toosimpleq] %(message)s", "%Y-%m-%d %H:%M:%S"
 )
 
 handler = logging.StreamHandler()
