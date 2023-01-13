@@ -1,9 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List
 
 from croniter import croniter, croniter_range
 from django.db import transaction
-from django.utils import timezone
+from django.utils.timezone import now
 
 from django_toosimple_q.models import ScheduleExec
 
@@ -53,29 +53,30 @@ class Schedule:
             # retrieve the last execution
             schedule_exec, created = ScheduleExec.objects.get_or_create(name=self.name)
 
-            logger.debug(f"Executing {schedule_exec}")
+            # By default, last_due is None on creation, meaning the schedule is due right away.
+            # Optionally, it could be considered due only for the next cron.
+            if created and not self.run_on_creation:
+                schedule_exec.last_due = now()
 
-            did_something = False
-
+            # Determine the next_dues
             if force:
                 next_dues = [None]
-            elif created and self.run_on_creation:
-                # If the schedule is new, we run it now
-                next_dues = [croniter(self.cron, timezone.now()).get_prev(datetime)]
-            elif timezone.now() - schedule_exec.last_tick < timedelta(
-                seconds=tick_duration
-            ):
-                # If the last check was less than a tick ago (usually only happens when testing with until_done)
-                next_dues = []
+            elif schedule_exec.last_due is None:
+                # If the schedule has no last due date (probaby create with run_on_creation), we run it
+                next_dues = [croniter(self.cron, now()).get_prev(datetime)]
             else:
                 # Otherwise, we find all execution times since last check
                 next_dues = list(
-                    croniter_range(schedule_exec.last_tick, timezone.now(), self.cron)
+                    croniter_range(
+                        schedule_exec.last_due, now(), self.cron, exclude_ends=True
+                    )
                 )
                 # We keep only the last one if catchup wasn't specified
                 if not self.catch_up:
                     next_dues = next_dues[-1:]
 
+            # We enqueue the due tasks
+            did_something = False
             for next_due in next_dues:
 
                 logger.debug(f"{schedule_exec} is due at {next_due}")
@@ -88,11 +89,13 @@ class Schedule:
                     *self.args, due=next_due, **dt_kwarg, **self.kwargs
                 )
                 if t:
-                    schedule_exec.last_run = t
+                    # TODO: enqueue returns None when the task is duplicated
+                    schedule_exec.last_task = t
 
+                # Update the last due
+                schedule_exec.last_due = next_due
                 did_something = True
 
-            schedule_exec.last_tick = timezone.now()
             schedule_exec.state = ScheduleExec.States.ACTIVE
             schedule_exec.save()
 

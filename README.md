@@ -187,7 +187,7 @@ def my_task(time_of_day):
     return f"Good {time_of_day} John !"
 ```
 
-By default, `last_tick` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
+By default, `last_run` is set to `now()` on schedule creation. This means they will only run on next cron occurence. If you need your schedules to be run as soon as possible after initialisation, you can specify `run_on_creation=True`.
 
 ```python
 @schedule_task(cron="30 8 * * *", run_on_creation=True)
@@ -362,6 +362,7 @@ pre-commit install
     - task name must now be provided as a kwarg: `@register_task("mytask")` -> `@register_task(name="mytask")`)
     - replace `@schedule_task(..., last_check=None)` -> `@schedule_task(..., run_on_creation=True)`
     - models: `Schedule` -> `ScheduleExec` and `Task` -> `TaskExec`
+    - renamed `ScheduleExec.last_run` to `ScheduleExec.last_task`
 
 - 2022-03-24 : v0.4.0
   - made `last_check` and `last_run` optional in the admin
