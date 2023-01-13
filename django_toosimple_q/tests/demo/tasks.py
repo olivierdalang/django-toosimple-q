@@ -4,6 +4,7 @@ import sys
 import time
 
 from django.utils import timezone
+from django.utils.formats import time_format
 
 from ...decorators import register_task, schedule_task
 from ...models import TaskExec
@@ -12,7 +13,9 @@ from ...models import TaskExec
 @schedule_task(cron="*/15 * * * * *", datetime_kwarg="scheduled_time", queue="demo")
 @register_task(name="say_hi", queue="demo")
 def say_hi(scheduled_time):
-    return f"Had to say hi {scheduled_time} (it is now {timezone.now()})"
+    if scheduled_time is None:
+        return "Hi ! This was not scheduled..."
+    return f"Hi at {time_format(scheduled_time)}"
 
 
 @schedule_task(cron="0 * * * * *", queue="demo")

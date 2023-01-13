@@ -69,9 +69,8 @@ class TestAutoreloadingWorker(TooSimpleQBackgroundTestCase):
 
     def test_schedules(self):
         # Start a worker
-        self.workers_start_in_background(
+        self.start_worker_in_background(
             queue="tasks",
-            count=1,
             tick=1,
             until_done=False,
             reload="always",
@@ -81,7 +80,7 @@ class TestAutoreloadingWorker(TooSimpleQBackgroundTestCase):
         # The reloader needs some time to initially start up and to reload. This
         # means we must wait a little otherwise it won't pick up changes.
         # FIXME: for some reason, this seems required only with sqlite
-        RELOADER_WAIT = timedelta(seconds=5)
+        RELOADER_WAIT = timedelta(seconds=10)
 
         # Running the task with delay
         output_string_task.queue(due=now() + RELOADER_WAIT)
@@ -105,7 +104,7 @@ class TestAutoreloadingWorker(TooSimpleQBackgroundTestCase):
         self.workers_gracefully_stop()
 
         # Get the output
-        output = self.workers_wait_for_success()
+        output = self.workers_get_stdout()
 
         self.assertTrue(
             "tasks.py changed, reloading." in output,
@@ -132,8 +131,8 @@ class TestWorkerExit(TooSimpleQBackgroundTestCase):
         sleep_task.queue(duration=duration)
 
         # Start a worker
-        self.workers_start_in_background(
-            label="wa", queue="tasks", tick=1, until_done=False, verbosity=3, timeout=3
+        self.start_worker_in_background(
+            queue="tasks", tick=1, until_done=False, verbosity=3, timeout=3
         )
 
         # Wait for the task to be picked up by the worker
@@ -208,13 +207,13 @@ class TestWorkerExit(TooSimpleQBackgroundTestCase):
         self.assertEqual(self.taskexec.replaced_by.state, TaskExec.States.SLEEPING)
 
     def test_worker_crash(self):
-        self._start_worker_with_task(duration=0)
+        self._start_worker_with_task()
 
         # Simluate a crash by deleting the workerexec instance
         self.process.send_signal(signal.SIGUSR1)
 
         # The exit code should be 0, it's a graceful quit
-        exit_code = self.process.wait(timeout=5)
+        exit_code = self.process.wait(timeout=15)
         self.assertEqual(exit_code, WorkerStatus.ExitCodes.CRASHED.value)
 
         # The worker should correctly set its state

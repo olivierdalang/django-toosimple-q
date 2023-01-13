@@ -1,14 +1,8 @@
-import contextlib
-import io
-import traceback
-from datetime import timedelta
 from typing import Callable
 
-from django.db import transaction
 from django.utils import timezone
 
 from .logging import logger
-from .models import TaskExec
 
 
 class Task:
@@ -80,67 +74,6 @@ class Task:
             retries=self.retries,
             retry_delay=self.retry_delay,
         )
-
-    def execute(self, task_exec):
-        """Execute the task.
-
-        Returns True if at the task was executed, whether it failed or succeeded (so you can loop for testing).
-        """
-
-        logger.debug(f"Executing : {self}")
-
-        try:
-            with transaction.atomic():
-                try:
-                    stdout = io.StringIO()
-                    stderr = io.StringIO()
-
-                    with contextlib.redirect_stderr(stderr):
-                        with contextlib.redirect_stdout(stdout):
-                            task_exec.result = self.callable(
-                                *task_exec.args, **task_exec.kwargs
-                            )
-                    task_exec.state = TaskExec.States.SUCCEEDED
-                except Exception:
-                    logger.warning(f"{task_exec} failed !")
-                    task_exec.state = TaskExec.States.FAILED
-                    task_exec.error = traceback.format_exc()
-                    if task_exec.retries != 0:
-                        self.create_replacement(task_exec, is_retry=True)
-                finally:
-                    task_exec.finished = timezone.now()
-                    task_exec.stdout = stdout.getvalue()
-                    task_exec.stderr = stderr.getvalue()
-                    task_exec.save()
-        except (KeyboardInterrupt, SystemExit) as e:
-            logger.critical(f"{task_exec} got interrupted !")
-            task_exec.state = TaskExec.States.INTERRUPTED
-            task_exec.save()
-            self.create_replacement(task_exec, is_retry=False)
-            raise e
-
-        return True
-
-    def create_replacement(self, task_exec, is_retry):
-        if is_retry:
-            retries = task_exec.retries - 1 if task_exec.retries > 0 else -1
-            delay = task_exec.retry_delay * 2
-        else:
-            retries = task_exec.retries
-            delay = task_exec.retry_delay
-
-        logger.info(f"Creating a replacement task for {task_exec}")
-        replaced_by = TaskExec.objects.create(
-            task_name=task_exec.task_name,
-            args=task_exec.args,
-            kwargs=task_exec.kwargs,
-            retries=retries,
-            retry_delay=delay,
-            state=TaskExec.States.SLEEPING,
-            due=timezone.now() + timedelta(seconds=task_exec.retry_delay),
-        )
-        task_exec.replaced_by = replaced_by
-        task_exec.save()
 
     def __str__(self):
         return f"Task {self.name}"

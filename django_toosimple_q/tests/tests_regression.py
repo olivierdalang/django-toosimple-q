@@ -10,11 +10,8 @@ class TestRegression(TooSimpleQBackgroundTestCase):
         # Regression test for an issue where a schedule with smaller periods was not always processed
 
         # A worker that ticks every second should trigger a schedule due every second
-        self.workers_start_in_background(
-            queue="regr_schedule_short",
-            tick=1,
-            until_done=False,
-            verbosity=3,
+        self.start_worker_in_background(
+            queue="regr_schedule_short", tick=1, until_done=False, verbosity=3
         )
         time.sleep(20)
 

@@ -6,7 +6,7 @@ from django.db import IntegrityError
 from ...decorators import register_task, schedule_task
 
 
-@schedule_task(cron="* * * * *", queue="schedules")
+@schedule_task(cron="* * * * *", queue="schedules", run_on_creation=True)
 @register_task(name="create_user", queue="tasks")
 def create_user():
     time.sleep(0.5)
@@ -26,7 +26,9 @@ def create_user():
 
 @register_task(name="sleep_task", queue="tasks")
 def sleep_task(duration):
-    time.sleep(duration)
+    t1 = time.time()
+    while time.time() - t1 < duration:
+        pass
     return True
 
 
