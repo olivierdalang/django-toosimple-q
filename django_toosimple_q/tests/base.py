@@ -109,6 +109,8 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
     See TooSimpleQTestCaseMixin.
     """
 
+    postgres_lag_for_background_worker = False
+
     def setUp(self):
         super().setUp()
         self.processes: List[subprocess.Popen] = []
@@ -131,10 +133,16 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
     ):
         """Starts N workers in the background on the specified queue."""
 
-        environ = {
-            **os.environ,
-            "DJANGO_SETTINGS_MODULE": "django_toosimple_q.tests.concurrency.settings",
-        }
+        if self.postgres_lag_for_background_worker:
+            environ = {
+                **os.environ,
+                "DJANGO_SETTINGS_MODULE": "django_toosimple_q.tests.settings_bg_lag",
+            }
+        else:
+            environ = {
+                **os.environ,
+                "DJANGO_SETTINGS_MODULE": "django_toosimple_q.tests.settings_bg",
+            }
 
         command = ["python", "manage.py", "worker"]
 
