@@ -121,12 +121,12 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
         self.workers_gracefully_stop()
         self.workers_kill()
 
-    def workers_start_in_background(
+    def start_worker_in_background(
         self,
-        count=1,
         queue=None,
         tick=None,
         until_done=True,
+        once=False,
         skip_checks=True,
         reload="never",
         verbosity=None,
@@ -136,15 +136,9 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
         """Starts N workers in the background on the specified queue."""
 
         if self.postgres_lag_for_background_worker:
-            environ = {
-                **os.environ,
-                "DJANGO_SETTINGS_MODULE": "django_toosimple_q.tests.settings_bg_lag",
-            }
+            settings = "django_toosimple_q.tests.settings_bg_lag"
         else:
-            environ = {
-                **os.environ,
-                "DJANGO_SETTINGS_MODULE": "django_toosimple_q.tests.settings_bg",
-            }
+            settings = "django_toosimple_q.tests.settings_bg"
 
         command = ["python", "manage.py", "worker"]
 
@@ -156,6 +150,8 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
             command.extend(["--queue", str(queue)])
         if until_done:
             command.extend(["--until_done"])
+        if once:
+            command.extend(["--once"])
         if skip_checks:
             command.extend(["--skip-checks"])
         if reload:
@@ -165,23 +161,23 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
         if timeout:
             command.extend(["--timeout", str(timeout)])
 
-        for _ in range(count):
-            self.processes.append(
-                subprocess.Popen(
-                    command,
-                    encoding="utf-8",
-                    env=environ,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                )
+        logger.debug(f"Starting workers: {' '.join(command)}")
+        self.processes.append(
+            subprocess.Popen(
+                command,
+                encoding="utf-8",
+                env={**os.environ, "DJANGO_SETTINGS_MODULE": settings},
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
             )
+        )
 
     def wait_for_qs(self, queryset, exists=True, timeout=15):
         """Waits until the queryset exists (or does not exist)"""
         start_time = time.time()
         while queryset.exists() == (not exists):
             if (time.time() - start_time) > timeout:
-                raise Exception(
+                raise AssertionError(
                     f"Expected queryset was not present after {timeout} seconds"
                     if exists
                     else f"Unexpected queryset was still present after {timeout} seconds"
@@ -195,25 +191,36 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
             timeout=timeout,
         )
 
-    def workers_wait_for_success(self):
-        """Waits for all processes to finish, assert they succeeded, and returns output of the last process."""
+    def workers_get_stdout(self):
+        """Stops the workers if needed and returns the stdout of the last worker, or raises an exception on error.
 
-        last_stdout = None
-        error_count = 0
+        Can be used to check output or to assert success"""
+
+        outputs = []
         for process in self.processes:
             try:
-                last_stdout, _ = process.communicate(timeout=15)
+                stdout, stderr = process.communicate(timeout=15)
             except subprocess.TimeoutExpired:
                 process.kill()
-                last_stdout, _ = process.communicate()
-            if process.returncode != 0:
-                error_count += 1
+                stdout, stderr = process.communicate()
+            outputs.append((process.returncode, stdout, stderr))
 
-        if error_count:
-            logger.warn(f"Full output of last stdout:\n{last_stdout}")
-            raise AssertionError(
-                f"{error_count} out of { len(self.processes)} workers errored!"
-            )
+        # Outputs that errored
+        error_outputs = [o for o in outputs if o[0] != 0]
+
+        # Last output is last one
+        last_output = error_outputs[-1] if error_outputs else outputs[-1]
+
+        last_retcod, last_stdout, last_stderr = last_output
+
+        # Raise exception if error
+        if last_retcod != 0:
+            all_retcodes = ", ".join([f"{r[0]}" for r in outputs])
+            logger.warn(f"Some workers errored. All return codes: {all_retcodes}\n")
+            logger.warn(f"Last error retcod:\n{last_retcod}\n")
+            logger.warn(f"Last error stdout:\n{last_stdout}\n")
+            logger.warn(f"Last error stderr:\n{last_stderr}")
+            raise AssertionError(f"Some workers errored.")
 
         return last_stdout
 

@@ -2,13 +2,15 @@ import datetime
 import logging
 import os
 import signal
+import sys
 from traceback import format_exc
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Case, Value, When
-from django.utils import autoreload, timezone
+from django.utils import autoreload
+from django.utils.timezone import now
 
 from ...logging import logger
 from ...models import ScheduleExec, TaskExec, WorkerStatus
@@ -82,14 +84,23 @@ class Command(BaseCommand):
         # We store the PID in the environment, so it can be reused accross reloads
         pid = os.environ.setdefault("TOOSIMPLEQ_PID", f"{os.getpid()}")
 
+        # TODO: replace by simple-parsing
         self.queues = options["queue"] or []
         self.excluded_queues = options["exclude_queue"] or []
         self.tick_duration = options["tick"]
-        self.label = options["label"].replace(r"{pid}", pid)
         self.timeout = options["timeout"]
+        self.once = options["once"]
+        self.until_done = options["until_done"]
+
+        self.reloader_active = options["reload"] == "always" or (
+            settings.DEBUG and options["reload"] == "default"
+        )
+
+        self.label = options["label"].replace(r"{pid}", pid)
+
         self.exit_requested = False
         self.simulate_exception = False
-        self.current_task_exec = None
+        self.cur_task_exec = None
 
         logger.info(f"Starting worker '{self.label}'...")
         if self.queues:
@@ -105,22 +116,21 @@ class Command(BaseCommand):
         else:
             logger.setLevel(logging.DEBUG)
 
-        if options["reload"] == "always" or (
-            settings.DEBUG and options["reload"] == "default"
-        ):
+        if self.reloader_active:
             logger.info(f"Running with reloader !")
-            autoreload.run_with_reloader(self.inner_run, options)
+            autoreload.run_with_reloader(self.inner_run)
         else:
-            self.inner_run(options)
+            self.inner_run()
 
-    def inner_run(self, options):
+    def inner_run(self):
         autoreload.raise_last_exception()
 
         # On startup, we report the worker went online
+        logger.debug(f"Get or create worker instance")
         self.worker_status, _ = WorkerStatus.objects.update_or_create(
             label=self.label,
             defaults={
-                "started": timezone.now(),
+                "started": now(),
                 "stopped": None,
                 "exit_code": None,
                 "exit_log": None,
@@ -130,124 +140,141 @@ class Command(BaseCommand):
             },
         )
 
+        exc = None
+
         try:
-            last_run = timezone.now()
-            while not self.exit_requested:
-                if self.exit_requested:
-                    break
+            # Run the loop
+            while self.do_loop():
+                pass
 
-                # for testing
-                if self.simulate_exception:
-                    raise FakeException()
-
-                did_something = self.tick()
-
-                if options["once"]:
-                    logger.info("Exiting loop because --once was passed")
-                    break
-
-                if options["until_done"] and not did_something:
-                    logger.info("Exiting loop because --until_done was passed")
-                    break
-
-                if not did_something:
-                    logger.debug(f"Waiting for next tick...")
-                    next_run = last_run + datetime.timedelta(seconds=self.tick_duration)
-                    while not self.exit_requested and timezone.now() < next_run:
-                        pass
-
-                last_run = timezone.now()
-
-            logger.critical(f"Gracefully finished")
             self.worker_status.exit_code = WorkerStatus.ExitCodes.STOPPED.value
             self.worker_status.exit_log = ""
-        except (KeyboardInterrupt, SystemExit):
+
+        except (KeyboardInterrupt, SystemExit) as e:
+            exc = e
             logger.critical(f"Terminated by user request")
+            if self.cur_task_exec:
+                logger.critical(f"{self.cur_task_exec} got terminated !")
+                self.cur_task_exec.state = TaskExec.States.INTERRUPTED
+                self.cur_task_exec.save()
+                self.cur_task_exec.create_replacement(is_retry=False)
+                self.cur_task_exec = None
             self.worker_status.exit_code = WorkerStatus.ExitCodes.TERMINATED.value
             self.worker_status.exit_log = format_exc()
+
         except Exception as e:
+            exc = e
             logger.critical(f"Crashed unhandled exception: {e}")
             self.worker_status.exit_code = WorkerStatus.ExitCodes.CRASHED.value
             self.worker_status.exit_log = format_exc()
+
         finally:
-            self.worker_status.stopped = timezone.now()
+            self.worker_status.stopped = now()
             self.worker_status.save()
 
         if self.worker_status.exit_code:
-            raise CommandError(returncode=self.worker_status.exit_code)
+            raise CommandError(returncode=self.worker_status.exit_code) from exc
 
-    def tick(self):
-        """Returns True if something happened (so you can loop for testing)"""
+        if self.reloader_active:
+            sys.exit(0)
+
+    def do_loop(self) -> bool:
+        """Runs one tick, returns True if it should continue looping"""
 
         logger.debug(f"Tick !")
 
+        last_run = now()
+
         did_something = False
 
-        logger.debug(f"Update status...")
-        self.worker_status.last_tick = timezone.now()
+        logger.debug(f"1. Update status...")
+        self.worker_status.last_tick = now()
         self.worker_status.save()
 
-        logger.debug(f"Disabling orphaned schedules")
+        logger.debug(f"2. Disabling orphaned schedules")
         with transaction.atomic():
-            count = (
+            if (
                 ScheduleExec.objects.exclude(state=ScheduleExec.States.INVALID)
                 .exclude(name__in=schedules_registry.keys())
                 .update(state=ScheduleExec.States.INVALID)
-            )
-            if count > 0:
-                logger.warning(f"Found {count} invalid schedules")
+            ):
+                logger.warning(f"Found invalid schedules")
 
-        logger.debug(f"Disabling orphaned tasks")
+        logger.debug(f"3. Disabling orphaned tasks")
         with transaction.atomic():
-            count = (
+            if (
                 TaskExec.objects.exclude(state=TaskExec.States.INVALID)
                 .exclude(task_name__in=tasks_registry.keys())
                 .update(state=TaskExec.States.INVALID)
-            )
-            if count > 0:
-                logger.warning(f"Found {count} invalid tasks")
+            ):
+                logger.warning(f"Found invalid tasks")
 
-        logger.debug(f"Checking schedules")
-        schedules_to_check = schedules_registry.for_queue(
-            self.queues, self.excluded_queues
-        )
-        for schedule in schedules_to_check:
-            did_something |= schedule.execute(self.tick_duration)
+        logger.debug(f"4. Create missing schedules")
+        existing_schedules_names = ScheduleExec.objects.values_list("name", flat=True)
+        for schedule in self._relevant_schedules:
+            # Create the schedule exec if it does not exist
+            if schedule.name in existing_schedules_names:
+                continue
+            try:
+                last_due = None if schedule.run_on_creation else now()
+                ScheduleExec.objects.create(name=schedule.name, last_due=last_due)
+                logger.debug(f"Created schedule {schedule.name}")
+            except IntegrityError:
+                # This could happen with concurrent workers, and can be ignored
+                logger.debug(
+                    f"Schedule {schedule.name} already exists, probably created concurrently"
+                )
 
-        logger.debug(f"Waking up tasks")
+        logger.debug(f"5. Execute schedules")
+        with transaction.atomic():
+            for schedule_exec in self._build_schedules_list_qs():
+                did_something |= schedule_exec.execute()
+
+        logger.debug(f"6. Waking up tasks")
         TaskExec.objects.filter(state=TaskExec.States.SLEEPING).filter(
-            due__lte=timezone.now()
+            due__lte=now()
         ).update(state=TaskExec.States.QUEUED)
 
-        logger.debug(f"Checking tasks")
-        # We compile an ordering clause from the registry
-        order_by_priority_clause = Case(
-            *[
-                When(task_name=task.name, then=Value(-task.priority))
-                for task in tasks_registry.values()
-            ],
-            default=Value(0),
-        )
-        tasks_to_check = tasks_registry.for_queue(self.queues, self.excluded_queues)
-        tasks_execs = TaskExec.objects.filter(state=TaskExec.States.QUEUED)
-        tasks_execs = tasks_execs.filter(task_name__in=[t.name for t in tasks_to_check])
-        tasks_execs = tasks_execs.order_by(order_by_priority_clause, "due", "created")
+        logger.debug(f"7. Locking task")
         with transaction.atomic():
-            self.current_task_exec = tasks_execs.select_for_update().first()
-            if self.current_task_exec:
-                logger.debug(f"{self.current_task_exec} is due !")
-                self.current_task_exec.started = timezone.now()
-                self.current_task_exec.state = TaskExec.States.PROCESSING
-                self.current_task_exec.worker = self.worker_status
-                self.current_task_exec.save()
+            self.cur_task_exec = self._build_due_tasks_qs().first()
+            if self.cur_task_exec:
+                logger.debug(f"{self.cur_task_exec} is due !")
+                self.cur_task_exec.started = now()
+                self.cur_task_exec.state = TaskExec.States.PROCESSING
+                self.cur_task_exec.worker = self.worker_status
+                self.cur_task_exec.save()
 
-        if self.current_task_exec:
-            task = tasks_registry[self.current_task_exec.task_name]
-            self.current_task = task
-            did_something |= task.execute(self.current_task_exec)
-            self.current_task_exec = None
+        logger.debug(f"8. Running task")
+        if self.cur_task_exec:
+            logger.debug(f"Executing : {self.cur_task_exec}")
+            did_something = True
+            self.cur_task_exec.execute()
+            self.cur_task_exec = None
 
-        return did_something
+        if self.once:
+            logger.info("Exiting loop because --once was passed")
+            return False
+
+        if self.until_done and not did_something:
+            logger.info("Exiting loop because --until_done was passed")
+            return False
+
+        if self.exit_requested:
+            logger.critical("Exiting gracefully on user request")
+            return False
+
+        if self.simulate_exception:
+            # for testing
+            raise FakeException()
+
+        if not did_something:
+            logger.debug(f"Waiting for next tick...")
+            next_run = last_run + datetime.timedelta(seconds=self.tick_duration)
+            while not self.exit_requested and now() < next_run:
+                pass
+
+        return True
 
     def handle_signal(self, sig, stackframe):
         # For testing, simulates a unexpected crash of the worker
@@ -263,6 +290,41 @@ class Command(BaseCommand):
         # A first interruption signal is graceful exit
         if sig == signal.SIGINT:
             logger.critical(f"User requested graceful exit...")
-            if self.current_task_exec is not None:
-                logger.critical(f"Waiting for `{self.current_task_exec}` to finish...")
+            if self.cur_task_exec is not None:
+                logger.critical(f"Waiting for `{self.cur_task_exec}` to finish...")
             self.exit_requested = True
+
+    @property
+    def _relevant_schedules(self):
+        """Get a list of schedules for this worker"""
+        return schedules_registry.for_queue(self.queues, self.excluded_queues)
+
+    def _build_schedules_list_qs(self):
+        """The queryset to select the list of schedules for update"""
+
+        return ScheduleExec.objects.filter(
+            name__in=[s.name for s in self._relevant_schedules]
+        ).select_for_update(skip_locked=True)
+
+    @property
+    def _relevant_tasks(self):
+        """Get a list of tasks for this worker"""
+        return tasks_registry.for_queue(self.queues, self.excluded_queues)
+
+    def _build_due_tasks_qs(self):
+        """The queryset to select the task due by this worker for update"""
+
+        # Build a order_by clause using the task priorities
+        whens = [
+            When(task_name=t.name, then=Value(-t.priority))
+            for t in self._relevant_tasks
+        ]
+        order_by_priority = Case(*whens, default=Value(0))
+
+        # Build the queryset
+        return (
+            TaskExec.objects.filter(state=TaskExec.States.QUEUED)
+            .filter(task_name__in=[t.name for t in self._relevant_tasks])
+            .order_by(order_by_priority, "due", "created")
+            .select_for_update(skip_locked=True)
+        )

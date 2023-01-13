@@ -4,7 +4,7 @@ import unittest
 
 from django.contrib.auth.models import User
 
-from django_toosimple_q.models import ScheduleExec, TaskExec
+from django_toosimple_q.models import TaskExec, WorkerStatus
 
 from .base import TooSimpleQBackgroundTestCase
 from .concurrency.tasks import create_user, sleep_task
@@ -22,19 +22,40 @@ class ConcurrencyTest(TooSimpleQBackgroundTestCase):
     postgres_lag_for_background_worker = True
 
     def test_schedules(self):
-        # Ensure no duplicate schedules were created
-        self.assertEqual(ScheduleExec.objects.count(), 0)
-        self.workers_start_in_background(queue="schedules", count=COUNT)
-        self.workers_wait_for_success()
-        self.assertEqual(ScheduleExec.objects.count(), 1)
+        # We create COUNT workers with different labels
+        for i in range(COUNT):
+            self.start_worker_in_background(
+                queue="schedules",
+                label=f"w-{i}",
+                verbosity=3,
+                once=True,
+                until_done=False,
+            )
+        self.workers_get_stdout()
+
+        # Ensure they were all created
+        self.assertEqual(WorkerStatus.objects.count(), COUNT)
+
+        # The schedule should have run just once and thus the task only queued once despite run_on_creation
+        self.assertEqual(TaskExec.objects.count(), 1)
 
     def test_tasks(self):
+        # Create a task
         create_user.queue()
 
-        # Ensure the task really was just executed once
         self.assertEqual(User.objects.count(), 0)
-        self.workers_start_in_background(queue="tasks", count=COUNT)
-        self.workers_wait_for_success()
+
+        # We create COUNT workers with different labels
+        for i in range(COUNT):
+            self.start_worker_in_background(
+                queue="tasks", label=f"w-{i}", verbosity=3, once=True, until_done=False
+            )
+        self.workers_get_stdout()
+
+        # Ensure they were all created
+        self.assertEqual(WorkerStatus.objects.count(), COUNT)
+
+        # The task shouldn't have run concurrently and thus have run only once
         self.assertEqual(User.objects.count(), 1)
 
     def test_task_processing_state(self):
@@ -45,7 +66,7 @@ class ConcurrencyTest(TooSimpleQBackgroundTestCase):
         self.assertEqual(t.state, TaskExec.States.QUEUED)
 
         # Start the task in a background process
-        self.workers_start_in_background(queue="tasks", count=1)
+        self.start_worker_in_background(queue="tasks")
 
         # Check that it is now processing
         time.sleep(5)
@@ -53,7 +74,7 @@ class ConcurrencyTest(TooSimpleQBackgroundTestCase):
         self.assertEqual(t.state, TaskExec.States.PROCESSING)
 
         # Wait for the background process to finish
-        self.workers_wait_for_success()
+        self.workers_get_stdout()
 
         # Check that it correctly succeeds
         t.refresh_from_db()
@@ -72,7 +93,7 @@ class ConcurrencyTest(TooSimpleQBackgroundTestCase):
         self.assertEqual(t.state, TaskExec.States.QUEUED)
 
         # Start the task in a background process
-        self.workers_start_in_background(queue="tasks", count=1)
+        self.start_worker_in_background(queue="tasks")
 
         # Check that it is now processing
         time.sleep(5)

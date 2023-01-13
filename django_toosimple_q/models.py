@@ -1,11 +1,16 @@
-import datetime
+import io
+import traceback
+from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timedelta
 from typing import List
 
+from croniter import croniter, croniter_range
 from django.db import models
-from django.utils import timezone
+from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from picklefield.fields import PickledObjectField
 
+from .logging import logger
 from .registry import schedules_registry, tasks_registry
 
 
@@ -71,8 +76,8 @@ class TaskExec(models.Model):
         help_text="Delay before next retry in seconds. Will double after each failure.",
     )
 
-    due = models.DateTimeField(default=timezone.now)
-    created = models.DateTimeField(default=timezone.now)
+    due = models.DateTimeField(default=now)
+    created = models.DateTimeField(default=now)
     started = models.DateTimeField(blank=True, null=True)
     finished = models.DateTimeField(blank=True, null=True)
     state = models.CharField(
@@ -104,6 +109,52 @@ class TaskExec(models.Model):
     @property
     def icon(self):
         return TaskExec.States.icon(self.state)
+
+    def execute(self):
+        try:
+            # Get the task from the registry
+            task = tasks_registry[self.task_name]
+
+            # Run the task
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stderr(stderr), redirect_stdout(stdout):
+                self.result = task.callable(*self.args, **self.kwargs)
+            self.state = TaskExec.States.SUCCEEDED
+        except Exception:
+            logger.warning(f"{self} failed !")
+            self.state = TaskExec.States.FAILED
+            self.error = traceback.format_exc()
+            if self.retries != 0:
+                self.create_replacement(is_retry=True)
+        finally:
+            self.finished = now()
+            self.stdout = stdout.getvalue()
+            self.stderr = stderr.getvalue()
+            self.save()
+
+    def create_replacement(self, is_retry):
+        logger.info(f"Creating a replacement task for {self}")
+
+        if is_retry:
+            # If it's a retry (failed task), we increment the retry count
+            retries = self.retries - 1 if self.retries > 0 else -1
+            delay = self.retry_delay * 2
+        else:
+            # If it's a replacement, we don't
+            retries = self.retries
+            delay = self.retry_delay
+
+        replaced_by = TaskExec.objects.create(
+            task_name=self.task_name,
+            args=self.args,
+            kwargs=self.kwargs,
+            retries=retries,
+            retry_delay=delay,
+            state=TaskExec.States.SLEEPING,
+            due=now() + timedelta(seconds=self.retry_delay),
+        )
+        self.replaced_by = replaced_by
+        self.save()
 
 
 class ScheduleExec(models.Model):
@@ -147,6 +198,34 @@ class ScheduleExec(models.Model):
     def icon(self):
         return ScheduleExec.States.icon(self.state)
 
+    def execute(self):
+        did_something = False
+
+        # Determine the next_dues
+        if self.last_due is None:
+            # If the schedule has no last due date (probaby create with run_on_creation), we run it
+            next_dues = [croniter(self.schedule.cron, now()).get_prev(datetime)]
+        else:
+            # Otherwise, we find all execution times since last check
+            next_dues = list(
+                croniter_range(
+                    self.last_due, now(), self.schedule.cron, exclude_ends=True
+                )
+            )
+            # We keep only the last one if catchup wasn't specified
+            if not self.schedule.catch_up:
+                next_dues = next_dues[-1:]
+
+        if next_dues:
+            self.schedule.execute(next_dues)
+            did_something = True
+            self.last_due = next_dues[-1]
+
+        self.state = ScheduleExec.States.ACTIVE
+        self.save()
+
+        return did_something
+
 
 class WorkerStatus(models.Model):
     """Represents the status of a worker. At each tick, the worker will update it's status.
@@ -186,9 +265,9 @@ class WorkerStatus(models.Model):
     label = models.CharField(max_length=1024, unique=True)
     included_queues = models.JSONField(default=list)
     excluded_queues = models.JSONField(default=list)
-    timeout = models.DurationField(default=datetime.timedelta(hours=1))
-    last_tick = models.DateTimeField(default=timezone.now)
-    started = models.DateTimeField(default=timezone.now)
+    timeout = models.DurationField(default=timedelta(hours=1))
+    last_tick = models.DateTimeField(default=now)
+    started = models.DateTimeField(default=now)
     stopped = models.DateTimeField(null=True, blank=True)
     exit_code = models.IntegerField(choices=ExitCodes.choices, null=True, blank=True)
     exit_log = models.TextField(null=True, blank=True)
@@ -202,7 +281,7 @@ class WorkerStatus(models.Model):
                 return WorkerStatus.States.TERMINATED
             else:
                 return WorkerStatus.States.CRASHED
-        elif self.last_tick < timezone.now() - self.timeout:
+        elif self.last_tick < now() - self.timeout:
             return WorkerStatus.States.TIMEDOUT
         else:
             return WorkerStatus.States.ONLINE
