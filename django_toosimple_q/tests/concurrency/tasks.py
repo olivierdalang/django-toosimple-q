@@ -33,3 +33,9 @@ def sleep_task(duration):
 @register_task(name="output_string_task", queue="tasks")
 def output_string_task():
     return "***OUTPUT_A***"
+
+
+@schedule_task(cron="* * * * * *", queue="regr_schedule_short")
+@register_task(name="regr_schedule_short", queue="_")
+def regr_schedule_short():
+    return True
