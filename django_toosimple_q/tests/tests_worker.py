@@ -78,7 +78,7 @@ class TestAutoreloadingWorker(TooSimpleQBackgroundTestCase):
         # The reloader needs some time to initially start up and to reload. This
         # means we must wait a little otherwise it won't pick up changes.
         # FIXME: for some reason, this seems required only with sqlite
-        RELOADER_WAIT = timedelta(seconds=10)
+        RELOADER_WAIT = timedelta(seconds=5)
 
         # Running the task with delay
         output_string_task.queue(due=now() + RELOADER_WAIT)

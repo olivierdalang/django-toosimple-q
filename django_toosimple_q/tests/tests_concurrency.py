@@ -19,8 +19,9 @@ class ConcurrencyTest(TooSimpleQBackgroundTestCase):
     """This runs some concurrency tests. It sets up a database with simulated lag to
     increase race conditions likelyhood, thus requires a running docker daemon."""
 
-    def test_schedules(self):
+    postgres_lag_for_background_worker = True
 
+    def test_schedules(self):
         # Ensure no duplicate schedules were created
         self.assertEqual(ScheduleExec.objects.count(), 0)
         self.workers_start_in_background(queue="schedules", count=COUNT)
@@ -28,7 +29,6 @@ class ConcurrencyTest(TooSimpleQBackgroundTestCase):
         self.assertEqual(ScheduleExec.objects.count(), 1)
 
     def test_tasks(self):
-
         create_user.queue()
 
         # Ensure the task really was just executed once
@@ -38,7 +38,6 @@ class ConcurrencyTest(TooSimpleQBackgroundTestCase):
         self.assertEqual(User.objects.count(), 1)
 
     def test_task_processing_state(self):
-
         t = sleep_task.queue(duration=10)
 
         # Check that the task correctly queued

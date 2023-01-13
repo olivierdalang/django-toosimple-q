@@ -1,10 +1,6 @@
-"""Settings overrides for testing concurrent workers, uses toxiproxy which simulates latency"""
+"""Settings overrides for testing concurrent workers by simulating latency with  toxiproxy which"""
 
-
-from ..settings import *
-
-# The background workers must also use the test database
-DATABASES["default"].update(DATABASES["default"]["TEST"])
+from .settings_bg import *
 
 # On postgres, background workers connect through toxiproxy to simluate latency
 if is_postgres():
