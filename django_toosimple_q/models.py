@@ -126,8 +126,8 @@ class ScheduleExec(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=1024, unique=True)
-    last_tick = models.DateTimeField(default=timezone.now)
-    last_run = models.ForeignKey(
+    last_due = models.DateTimeField(null=True, blank=True)
+    last_task = models.ForeignKey(
         TaskExec, null=True, blank=True, on_delete=models.SET_NULL
     )
     state = models.CharField(

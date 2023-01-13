@@ -119,38 +119,31 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     list_display = [
         "icon",
         "name",
-        "last_tick_",
-        "last_run_due_",
-        "last_run_task_",
+        "last_due_",
+        "last_task_",
         "schedule_",
     ]
     list_display_links = ["name"]
-    ordering = ["last_tick"]
+    ordering = ["-last_due"]
     list_filter = ["name", ScheduleQueueListFilter, "state"]
     actions = ["action_force_run"]
-    readonly_fields = ["schedule_", "last_run_due_"]
+    readonly_fields = ["schedule_"]
 
     def schedule_(self, obj):
         if not obj.schedule:
             return None
         return render_to_string("toosimpleq/schedule.html", {"schedule": obj.schedule})
 
-    @admin.display(ordering="last_run__due")
-    def last_run_due_(self, obj):
-        if obj.last_run:
-            return short_naturaltime(obj.last_run.due)
+    def last_task_(self, obj):
+        if obj.last_task:
+            app, model = obj.last_task._meta.app_label, obj.last_task._meta.model_name
+            edit_link = reverse(f"admin:{app}_{model}_change", args=(obj.last_task_id,))
+            return format_html('<a href="{}">{}</a>', edit_link, obj.last_task)
         return "-"
 
-    def last_run_task_(self, obj):
-        if obj.last_run:
-            app, model = obj.last_run._meta.app_label, obj.last_run._meta.model_name
-            edit_link = reverse(f"admin:{app}_{model}_change", args=(obj.last_run_id,))
-            return format_html('<a href="{}">{}</a>', edit_link, obj.last_run)
-        return "-"
-
-    @admin.display(ordering="last_tick")
-    def last_tick_(self, obj):
-        return short_naturaltime(obj.last_tick)
+    @admin.display(ordering="last_due")
+    def last_due_(self, obj):
+        return short_naturaltime(obj.last_due)
 
     @admin.display(description="Force run schedule")
     def action_force_run(self, request, queryset):
