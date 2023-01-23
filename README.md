@@ -65,7 +65,7 @@ Registered tasks can be scheduled from code using this cron-like syntax :
 ```python
 from django_toosimple_q.decorators import register_task, schedule_task
 
-# Register and schedule tasks
+# Register and schedule tasks (each morning at 8:30)
 @schedule_task(cron="30 8 * * *", args=['John'])
 @register_task()
 def morning_routine(name):
@@ -229,6 +229,17 @@ def task():
 # Then run those with these workers
 # manage.py worker --queue scheduler
 # manage.py worker --queue worker
+```
+
+Schedule's cron support a non-standard sixth argument for seconds  :
+```python
+from django_toosimple_q.decorators import register_task, schedule_task
+
+# A schedule running every 15 seconds
+@schedule_task(cron="* * * * * */15")
+@register_task()
+def morning_routine():
+    return f"15 seconds passed !"
 ```
 
 ### Management comment
