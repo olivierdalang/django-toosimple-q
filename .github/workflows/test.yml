@@ -40,7 +40,12 @@ jobs:
       TOOSIMPLEQ_TEST_DB: ${{ matrix.db }}
 
     steps:
-      - uses: actions/checkout@v1
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - uses: actions/checkout@v2
 
       - name: Lint with pre-commit
         uses: pre-commit/action@v2.0.2
