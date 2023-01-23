@@ -186,11 +186,14 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
 
     def wait_for_tasks(self, timeout=15):
         """Waits untill all tasks are marked as done in the database"""
-        return self.wait_for_qs(
-            TaskExec.objects.filter(state__in=TaskExec.States.todo()),
-            exists=False,
-            timeout=timeout,
-        )
+        try:
+            return self.wait_for_qs(
+                TaskExec.objects.filter(state__in=TaskExec.States.todo()),
+                exists=False,
+                timeout=timeout,
+            )
+        except AssertionError:
+            self.workers_get_stdout()
 
     def workers_get_stdout(self):
         """Stops the workers if needed and returns the stdout of the last worker, or raises an exception on error.

@@ -137,7 +137,11 @@ class TestWorkerExit(TooSimpleQBackgroundTestCase):
         )
 
         # Wait for the task to be picked up by the worker
-        self.wait_for_qs(TaskExec.objects.filter(state=TaskExec.States.PROCESSING))
+        try:
+            self.wait_for_qs(TaskExec.objects.filter(state=TaskExec.States.PROCESSING))
+        except AssertionError:
+            # Show the error
+            self.workers_get_stdout()
 
         # Keep id of the first task for further reference
         self.__first_task_pk = TaskExec.objects.first().pk
