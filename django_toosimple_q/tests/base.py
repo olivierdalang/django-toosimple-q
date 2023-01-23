@@ -169,6 +169,7 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
                 env={**os.environ, "DJANGO_SETTINGS_MODULE": settings},
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                shell=(os.name == "nt"),  # for some reason this seems needed on windows
             )
         )
 

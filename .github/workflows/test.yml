@@ -12,25 +12,27 @@ jobs:
   test:
     name: Tests dj${{ matrix.dj }} / ${{ matrix.db }} / py${{ matrix.py }}
 
-    runs-on: ubuntu-latest
     strategy:
       # all supported django version on lowest/highest supported python
       # see https://docs.djangoproject.com/en/4.1/faq/install/#what-python-version-can-i-use-with-django
       matrix:
         include:
-          - { dj: "3.2", db: "sqlite", py: "3.6" }
-          - { dj: "3.2", db: "sqlite", py: "3.10" }
-          - { dj: "3.2", db: "postgres", py: "3.6" }
-          - { dj: "3.2", db: "postgres", py: "3.10" }
-          - { dj: "4.0", db: "sqlite", py: "3.8" }
-          - { dj: "4.0", db: "sqlite", py: "3.10" }
-          - { dj: "4.0", db: "postgres", py: "3.8" }
-          - { dj: "4.0", db: "postgres", py: "3.10" }
-          - { dj: "4.1", db: "sqlite", py: "3.8" }
-          - { dj: "4.1", db: "sqlite", py: "3.11" }
-          - { dj: "4.1", db: "postgres", py: "3.8" }
-          - { dj: "4.1", db: "postgres", py: "3.11" }
+          - { os: "ubuntu-latest", dj: "3.2", db: "sqlite", py: "3.6" }
+          - { os: "ubuntu-latest", dj: "3.2", db: "sqlite", py: "3.10" }
+          - { os: "ubuntu-latest", dj: "3.2", db: "postgres", py: "3.6" }
+          - { os: "ubuntu-latest", dj: "3.2", db: "postgres", py: "3.10" }
+          - { os: "ubuntu-latest", dj: "4.0", db: "sqlite", py: "3.8" }
+          - { os: "ubuntu-latest", dj: "4.0", db: "sqlite", py: "3.10" }
+          - { os: "ubuntu-latest", dj: "4.0", db: "postgres", py: "3.8" }
+          - { os: "ubuntu-latest", dj: "4.0", db: "postgres", py: "3.10" }
+          - { os: "ubuntu-latest", dj: "4.1", db: "sqlite", py: "3.8" }
+          - { os: "ubuntu-latest", dj: "4.1", db: "sqlite", py: "3.11" }
+          - { os: "ubuntu-latest", dj: "4.1", db: "postgres", py: "3.8" }
+          - { os: "ubuntu-latest", dj: "4.1", db: "postgres", py: "3.11" }
+          - { os: "windows-latest", dj: "4.1", db: "postgres", py: "3.11-windowsservercore" }
       fail-fast: false
+
+    runs-on: ${{ matrix.os }}
 
     env:
       TOOSIMPLEQ_DJ_VERSION: ${{ matrix.dj }}

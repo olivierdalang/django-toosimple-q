@@ -1,6 +1,7 @@
 import inspect
 import signal
 import time
+import unittest
 from datetime import timedelta
 
 from django.core import management
@@ -206,6 +207,9 @@ class TestWorkerExit(TooSimpleQBackgroundTestCase):
         self.assertIsNotNone(self.taskexec.replaced_by)
         self.assertEqual(self.taskexec.replaced_by.state, TaskExec.States.SLEEPING)
 
+    @unittest.skipIf(
+        not hasattr(signal, "SIGUSR1"), "USR1 signal not available on this platform"
+    )
     def test_worker_crash(self):
         self._start_worker_with_task()
 

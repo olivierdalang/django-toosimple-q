@@ -77,9 +77,8 @@ class Command(BaseCommand):
         # signal.signal(signal.SIGTERM, self.handle_signal)
         signal.signal(signal.SIGTERM, signal.default_int_handler)
         # for simulating an exception in tests
-        signal.signal(signal.SIGUSR1, self.handle_signal)
-        # Handle termination (raises KeyboardInterrupt)
-        # Custom signal to provoke an artifical exception, used for testing only
+        if hasattr(signal, "SIGUSR1"):
+            signal.signal(signal.SIGUSR1, self.handle_signal)
 
         # We store the PID in the environment, so it can be reused accross reloads
         pid = os.environ.setdefault("TOOSIMPLEQ_PID", f"{os.getpid()}")
@@ -278,7 +277,7 @@ class Command(BaseCommand):
 
     def handle_signal(self, sig, stackframe):
         # For testing, simulates a unexpected crash of the worker
-        if sig == signal.SIGUSR1:
+        if hasattr(signal, "SIGUSR1") and sig == signal.SIGUSR1:
             self.simulate_exception = True
             return
 
