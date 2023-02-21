@@ -20,7 +20,6 @@ class TestMail(TooSimpleQRegularTestCase):
         TOOSIMPLEQ_EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     )
     def test_queue_mail(self):
-
         self.assertQueue(0)
 
         send_mail(
@@ -45,7 +44,6 @@ class TestMail(TooSimpleQRegularTestCase):
         TOOSIMPLEQ_EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     )
     def test_queue_mail_two(self):
-
         self.assertQueue(0)
 
         send_mail(
@@ -76,7 +74,6 @@ class TestMail(TooSimpleQRegularTestCase):
         TOOSIMPLEQ_EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     )
     def test_queue_mail_duplicate(self):
-
         self.assertQueue(0)
 
         send_mail(
@@ -107,7 +104,6 @@ class TestMail(TooSimpleQRegularTestCase):
         TOOSIMPLEQ_EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     )
     def test_queue_mass_mail(self):
-
         self.assertQueue(0)
 
         send_mass_mail(
@@ -133,7 +129,6 @@ class TestMail(TooSimpleQRegularTestCase):
         TOOSIMPLEQ_EMAIL_BACKEND="failing_backend",
     )
     def test_queue_mail_failing_backend(self):
-
         self.assertQueue(0)
 
         send_mail(
