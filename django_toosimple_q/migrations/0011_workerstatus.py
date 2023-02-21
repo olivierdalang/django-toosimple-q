@@ -8,7 +8,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("toosimpleq", "0010_auto_20220324_0419"),
     ]

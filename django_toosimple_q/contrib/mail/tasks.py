@@ -6,7 +6,6 @@ from django_toosimple_q.decorators import register_task
 
 @register_task(unique=True, retries=10, retry_delay=3)
 def send_email(emails):
-
     backend = getattr(
         settings,
         "TOOSIMPLEQ_EMAIL_BACKEND",

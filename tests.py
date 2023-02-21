@@ -15,7 +15,6 @@ class TestReadme(TestCase):
         # Run each block
         full_python_code = ""
         for python_block in python_blocks:
-
             # We concatenate all blocks with the previous ones (so we keep imports)
             full_python_code += python_block
             try:
