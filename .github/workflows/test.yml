@@ -34,6 +34,11 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    env:
+      TOOSIMPLEQ_DJ_VERSION: ${{ matrix.dj }}
+      TOOSIMPLEQ_PY_VERSION: ${{ matrix.py }}
+      TOOSIMPLEQ_TEST_DB: ${{ matrix.db }}
+
     steps:
       - name: Set git to use LF
         run: |
@@ -44,12 +49,6 @@ jobs:
 
       - name: Lint with pre-commit
         uses: pre-commit/action@v2.0.2
-
-      - name: Configure vars
-        run: |
-          echo 'TOOSIMPLEQ_DJ_VERSION: ${{ matrix.dj }}' > .env
-          echo 'TOOSIMPLEQ_PY_VERSION: ${{ matrix.py }}' >> .env
-          echo 'TOOSIMPLEQ_TEST_DB: ${{ matrix.db }}' >> .env
 
       - name: Docker build
         run: docker compose build
