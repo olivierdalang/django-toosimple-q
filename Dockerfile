@@ -7,10 +7,7 @@ WORKDIR /app
 # Install app in editable mode
 ADD ./requirements.txt /app/requirements.txt
 ADD ./requirements-dev.txt /app/requirements-dev.txt
-RUN echo "" > /app/README.md
-ADD ./django_toosimple_q/__init__.py /app/django_toosimple_q/__init__.py
-ADD ./setup.py /app/setup.py
-RUN pip install -r requirements-dev.txt
+RUN pip install -r requirements-dev.txt -r requirements.txt
 
 # Override django version
 ARG TOOSIMPLEQ_DJ_VERSION
