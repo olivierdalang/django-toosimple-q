@@ -1,5 +1,6 @@
 import re
 
+from django.core.management import call_command
 from django.test import TestCase
 
 
@@ -24,3 +25,12 @@ class TestIntegration(TestCase):
                 raise Exception(
                     f"Invalid readme block:\n{hr}\n{python_block}{hr}"
                 ) from e
+
+    def test_makemigrations(self):
+        # Ensure migrations are up to date with model changes
+        try:
+            call_command("makemigrations", "--check", "--dry-run")
+        except SystemExit:
+            raise AssertionError(
+                "Migrations are not up to date. You need to run `makemigrations`."
+            )
