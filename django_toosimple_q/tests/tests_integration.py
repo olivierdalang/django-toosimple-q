@@ -3,10 +3,10 @@ import re
 from django.test import TestCase
 
 
-class TestReadme(TestCase):
-    """Test code in the readme"""
-
+class TestIntegration(TestCase):
     def test_readme(self):
+        # Test code in the readme
+
         readme = open("README.md", "r").read()
 
         # This finds all ```python``` blocks
