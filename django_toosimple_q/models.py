@@ -6,6 +6,7 @@ from typing import List
 
 from croniter import croniter, croniter_range
 from django.db import models
+from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from picklefield.fields import PickledObjectField
@@ -198,28 +199,29 @@ class ScheduleExec(models.Model):
     def icon(self):
         return ScheduleExec.States.icon(self.state)
 
+    @cached_property
+    def next_dues(self):
+        if self.last_due is None:
+            # If the schedule has no last due date (probaby create with run_on_creation), we run it
+            return [croniter(self.schedule.cron, now()).get_prev(datetime)]
+
+        # Otherwise, we find all execution times since last check
+        dues = list(
+            croniter_range(self.last_due, now(), self.schedule.cron, exclude_ends=True)
+        )
+        # We keep only the last one if catchup wasn't specified
+        if not self.schedule.catch_up:
+            return dues[-1:]
+
+        return dues
+
     def execute(self):
         did_something = False
 
-        # Determine the next_dues
-        if self.last_due is None:
-            # If the schedule has no last due date (probaby create with run_on_creation), we run it
-            next_dues = [croniter(self.schedule.cron, now()).get_prev(datetime)]
-        else:
-            # Otherwise, we find all execution times since last check
-            next_dues = list(
-                croniter_range(
-                    self.last_due, now(), self.schedule.cron, exclude_ends=True
-                )
-            )
-            # We keep only the last one if catchup wasn't specified
-            if not self.schedule.catch_up:
-                next_dues = next_dues[-1:]
-
-        if next_dues:
-            self.schedule.execute(next_dues)
+        if self.next_dues:
+            self.schedule.execute(self.next_dues)
             did_something = True
-            self.last_due = next_dues[-1]
+            self.last_due = self.next_dues[-1]
 
         self.state = ScheduleExec.States.ACTIVE
         self.save()

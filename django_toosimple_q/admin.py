@@ -1,3 +1,6 @@
+from datetime import datetime
+
+from croniter import croniter
 from django.contrib import admin
 from django.contrib.messages.constants import SUCCESS
 from django.template.defaultfilters import truncatechars
@@ -120,6 +123,7 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
         "icon",
         "name",
         "last_due_",
+        "next_due_",
         "last_task_",
         "schedule_",
     ]
@@ -144,6 +148,20 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     @admin.display(ordering="last_due")
     def last_due_(self, obj):
         return short_naturaltime(obj.last_due)
+
+    @admin.display()
+    def next_due_(self, obj):
+        if obj.next_dues:
+            next_due = obj.next_dues[0]
+        else:
+            next_due = croniter(obj.schedule.cron, timezone.now()).get_next(datetime)
+
+        formatted_next_due = short_naturaltime(next_due)
+        if len(obj.next_dues) > 1:
+            formatted_next_due += mark_safe(f" [×{len(obj.next_dues)}]")
+        if next_due < timezone.now():
+            return mark_safe(f"<span style='color: red'>{formatted_next_due}</span>")
+        return formatted_next_due
 
     @admin.display(description="Force run schedule")
     def action_force_run(self, request, queryset):
@@ -188,7 +206,6 @@ def short_naturaltime(datetime):
     if datetime is None:
         return None
 
-    delta = timezone.now() - datetime
     disps = [
         (60, "s"),
         (60 * 60, "m"),
@@ -199,13 +216,16 @@ def short_naturaltime(datetime):
         (float("inf"), "Y"),
     ]
 
+    delta = timezone.now() - datetime
+    seconds = delta.total_seconds()
+
     last_v = 1
     for threshold, abbr in disps:
-        if abs(delta.seconds) < threshold:
-            text = f"{delta.seconds // last_v}{abbr}"
+        if abs(seconds) < threshold:
+            text = f"{int(abs(seconds) // last_v)}{abbr}"
             break
         last_v = threshold
 
-    shorttime = f"in&nbsp;{text}" if delta.seconds < 0 else f"{text}&nbsp;ago"
+    shorttime = f"in&nbsp;{text}" if seconds < 0 else f"{text}&nbsp;ago"
     longtime = date_format(datetime, format="DATETIME_FORMAT", use_l10n=True)
     return mark_safe(f'<span title="{escape(longtime)}">{shorttime}</span>')

@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("toosimpleq", "0005_auto_20210302_1748"),
     ]

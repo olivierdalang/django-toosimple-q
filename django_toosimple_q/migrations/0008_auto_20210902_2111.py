@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("toosimpleq", "0007_schedule_datetime_kwarg"),
     ]
