@@ -9,30 +9,28 @@ on:
     - cron: "0 0 * * 0" # weekly
 
 jobs:
-  test:
+  test-docker:
     name: Tests dj${{ matrix.dj }} / ${{ matrix.db }} / py${{ matrix.py }}
 
+    runs-on: ubuntu-latest
     strategy:
       # all supported django version on lowest/highest supported python
       # see https://docs.djangoproject.com/en/4.1/faq/install/#what-python-version-can-i-use-with-django
       matrix:
         include:
-          - { os: "ubuntu-latest", dj: "3.2", db: "sqlite", py: "3.6" }
-          - { os: "ubuntu-latest", dj: "3.2", db: "sqlite", py: "3.10" }
-          - { os: "ubuntu-latest", dj: "3.2", db: "postgres", py: "3.6" }
-          - { os: "ubuntu-latest", dj: "3.2", db: "postgres", py: "3.10" }
-          - { os: "ubuntu-latest", dj: "4.0", db: "sqlite", py: "3.8" }
-          - { os: "ubuntu-latest", dj: "4.0", db: "sqlite", py: "3.10" }
-          - { os: "ubuntu-latest", dj: "4.0", db: "postgres", py: "3.8" }
-          - { os: "ubuntu-latest", dj: "4.0", db: "postgres", py: "3.10" }
-          - { os: "ubuntu-latest", dj: "4.1", db: "sqlite", py: "3.8" }
-          - { os: "ubuntu-latest", dj: "4.1", db: "sqlite", py: "3.11" }
-          - { os: "ubuntu-latest", dj: "4.1", db: "postgres", py: "3.8" }
-          - { os: "ubuntu-latest", dj: "4.1", db: "postgres", py: "3.11" }
-          - { os: "windows-latest", dj: "4.1", db: "postgres", py: "3.11-windowsservercore" }
+          - { dj: "3.2", db: "sqlite", py: "3.6" }
+          - { dj: "3.2", db: "sqlite", py: "3.10" }
+          - { dj: "3.2", db: "postgres", py: "3.6" }
+          - { dj: "3.2", db: "postgres", py: "3.10" }
+          - { dj: "4.0", db: "sqlite", py: "3.8" }
+          - { dj: "4.0", db: "sqlite", py: "3.10" }
+          - { dj: "4.0", db: "postgres", py: "3.8" }
+          - { dj: "4.0", db: "postgres", py: "3.10" }
+          - { dj: "4.1", db: "sqlite", py: "3.8" }
+          - { dj: "4.1", db: "sqlite", py: "3.11" }
+          - { dj: "4.1", db: "postgres", py: "3.8" }
+          - { dj: "4.1", db: "postgres", py: "3.11" }
       fail-fast: false
-
-    runs-on: ${{ matrix.os }}
 
     env:
       TOOSIMPLEQ_DJ_VERSION: ${{ matrix.dj }}
@@ -40,12 +38,7 @@ jobs:
       TOOSIMPLEQ_TEST_DB: ${{ matrix.db }}
 
     steps:
-      - name: Set git to use LF
-        run: |
-          git config --global core.autocrlf false
-          git config --global core.eol lf
-
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
 
       - name: Lint with pre-commit
         uses: pre-commit/action@v2.0.2
@@ -55,3 +48,23 @@ jobs:
 
       - name: Run tests
         run: docker compose run django test
+
+  test-windows:
+    name: Tests windows
+
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup postgres
+        uses: ikalnytskyi/action-setup-postgres@v4
+
+      - name: Install python deps
+        run: pip install -r requirements-dev.txt -r requirements.txt
+
+      - name: Run tests
+        env:
+          TOOSIMPLEQ_TEST_DB: postgres
+          POSTGRES_PORT_WORKER: "5432"
+        run: python manage.py test
