@@ -357,6 +357,7 @@ pre-commit install
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
   - feature: auto-reload when DEBUG is true
+  - feature: support windows
   - refactor: removed non-execution related data from the database (clarifying the fact tha the source of truth is the registry)
   - refactor: better support for concurrent workers
   - refactor: better names for models and decorators
