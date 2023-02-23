@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("toosimpleq", "0013_workerstatus_exit_code_workerstatus_exit_log"),
     ]
