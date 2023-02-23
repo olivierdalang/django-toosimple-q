@@ -11,7 +11,7 @@ RUN pip install -r requirements-dev.txt -r requirements.txt
 
 # Override django version
 ARG TOOSIMPLEQ_DJ_VERSION
-RUN pip install Django==$TOOSIMPLEQ_DJ_VERSION
+RUN pip install "Django==${TOOSIMPLEQ_DJ_VERSION}"
 
 # Add source files
 ADD . /app
