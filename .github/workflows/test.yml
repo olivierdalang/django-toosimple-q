@@ -61,7 +61,7 @@ jobs:
         uses: ikalnytskyi/action-setup-postgres@v4
 
       - name: Install python deps
-        run: pip install -r requirements-dev.txt -r requirements.txt
+        run: pip install -r requirements-dev.txt
 
       - name: Run tests
         env:
