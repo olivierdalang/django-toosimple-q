@@ -1,4 +1,5 @@
 import inspect
+import os
 import signal
 import time
 import unittest
@@ -230,6 +231,9 @@ class TestWorkerExit(TooSimpleQBackgroundTestCase):
 
         # The failure is not linked to the task
 
+    @unittest.skipIf(
+        os.name == "nt", "didn't find a way to gracefully stop subprocess on windows"
+    )
     def test_quit(self):
         self._start_worker_with_task()
 
