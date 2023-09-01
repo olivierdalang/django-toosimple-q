@@ -8,14 +8,13 @@ from django_toosimple_q.models import ScheduleExec, TaskExec
 
 from .base import TooSimpleQBackgroundTestCase
 from .concurrency.tasks import create_user, sleep_task
+from .utils import is_postgres
 
 COUNT = 32
 
 
 # FIXME: not sure if we really can't have this working on SQLITE ?
-@unittest.skipIf(
-    os.environ.get("TOOSIMPLEQ_TEST_DB") != "postgres", "requires postgres backend"
-)
+@unittest.skipIf(not is_postgres(), "requires postgres backend")
 class ConcurrencyTest(TooSimpleQBackgroundTestCase):
     """This runs some concurrency tests. It sets up a database with simulated lag to
     increase race conditions likelyhood, thus requires a running docker daemon."""

@@ -8,4 +8,5 @@ DATABASES["default"].update(DATABASES["default"]["TEST"])
 
 # On postgres, background workers connect through toxiproxy to simluate latency
 if is_postgres():
-    DATABASES["default"]["PORT"] = "5444"
+    DATABASES["default"]["HOST"] = os.environ.get("POSTGRES_HOST_WORKER", "127.0.0.1")
+    DATABASES["default"]["PORT"] = os.environ.get("POSTGRES_PORT_WORKER", "5433")
