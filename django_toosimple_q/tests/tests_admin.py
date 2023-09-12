@@ -43,6 +43,39 @@ class TestAdmin(TooSimpleQRegularTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+    def test_schedule_admin_force_action(self):
+        """Check if he force execute schedule action works"""
+
+        @schedule_task(cron="13 0 1 1 *")
+        @register_task(name="a")
+        def a():
+            return 2
+
+        self.assertSchedule("a", None)
+        self.assertQueue(0, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(0, state=TaskExec.States.QUEUED)
+
+        management.call_command("worker", "--until_done")
+
+        self.assertSchedule("a", ScheduleExec.States.ACTIVE)
+        self.assertQueue(0, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(0, state=TaskExec.States.QUEUED)
+
+        data = {
+            "action": "action_force_run",
+            "_selected_action": ScheduleExec.objects.get(name="a").pk,
+        }
+        response = self.client.post(
+            "/admin/toosimpleq/scheduleexec/", data, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+
+        management.call_command("worker", "--until_done")
+
+        self.assertSchedule("a", ScheduleExec.States.ACTIVE)
+        self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
+        self.assertQueue(0, state=TaskExec.States.QUEUED)
+
     def test_task_admin_requeue_action(self):
         """Check if the requeue action works"""
 
