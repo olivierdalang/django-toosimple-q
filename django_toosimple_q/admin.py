@@ -166,7 +166,7 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     @admin.display(description="Force run schedule")
     def action_force_run(self, request, queryset):
         for schedule_exec in queryset:
-            schedule_exec.schedule.execute(force=True)
+            schedule_exec.schedule.execute(dues=[None])
         self.message_user(
             request,
             f"{queryset.count()} schedules successfully executed",
