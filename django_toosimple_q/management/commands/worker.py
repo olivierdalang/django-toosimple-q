@@ -239,7 +239,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             self.cur_task_exec = self._build_due_tasks_qs().first()
             if self.cur_task_exec:
-                logger.debug(f"{self.cur_task_exec} is due !")
+                logger.debug(f"Picking up for execution : {self.cur_task_exec}")
                 self.cur_task_exec.started = now()
                 self.cur_task_exec.state = TaskExec.States.PROCESSING
                 self.cur_task_exec.worker = self.worker_status

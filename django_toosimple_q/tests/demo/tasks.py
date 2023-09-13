@@ -10,7 +10,9 @@ from ...decorators import register_task, schedule_task
 from ...models import TaskExec
 
 
-@schedule_task(cron="* * * * * */30", datetime_kwarg="scheduled_time", queue="demo")
+@schedule_task(
+    cron="* * * * * */30", datetime_kwarg="scheduled_time", queue="demo", catch_up=True
+)
 @register_task(name="say_hi", queue="demo")
 def say_hi(scheduled_time):
     if scheduled_time is None:

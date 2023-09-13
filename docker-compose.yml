@@ -30,7 +30,7 @@ services:
 
   worker:
     <<: *default-django
-    command: worker --queue demo
+    command: worker --queue demo --verbosity 3
 
   postgres:
     image: postgres
