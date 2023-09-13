@@ -2,8 +2,7 @@
 
 version: "3"
 
-x-default-django:
-  &default-django
+x-default-django: &default-django
   build:
     context: .
     args:
@@ -31,7 +30,7 @@ services:
 
   worker:
     <<: *default-django
-    command: worker --queue demo --reload never
+    command: worker --queue demo
 
   postgres:
     image: postgres
