@@ -2,6 +2,8 @@ ARG TOOSIMPLEQ_PY_VERSION
 
 FROM python:$TOOSIMPLEQ_PY_VERSION
 
+RUN pip install --upgrade pip
+
 WORKDIR /app
 
 # Install empty project (source added/mounted later)
