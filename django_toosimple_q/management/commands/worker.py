@@ -65,12 +65,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Handle interuption signals
         signal.signal(signal.SIGINT, self.handle_signal)
-        # signal.signal(signal.SIGTERM, self.handle_signal)
-        signal.signal(signal.SIGTERM, signal.default_int_handler)
-        # for simulating an exception in tests
-        signal.signal(signal.SIGUSR1, self.handle_signal)
-        # Handle termination (raises KeyboardInterrupt)
+        signal.signal(signal.SIGTERM, self.handle_signal)
         # Custom signal to provoke an artifical exception, used for testing only
+        signal.signal(signal.SIGUSR1, self.handle_signal)
 
         # TODO: replace by simple-parsing
         self.queues = options["queue"] or []
