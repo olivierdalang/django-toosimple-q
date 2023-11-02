@@ -72,6 +72,32 @@ class TaskExecAdmin(ReadOnlyAdmin):
     actions = ["action_requeue"]
     ordering = ["-created"]
     readonly_fields = ["task_", "result"]
+    fieldsets = [
+        (
+            None,
+            {"fields": ["icon", "task_name", "state", "task_"]},
+        ),
+        (
+            "Arguments",
+            {"fields": ["args", "kwargs"]},
+        ),
+        (
+            "Time",
+            {"fields": ["due_", "created_", "started_", "finished_"]},
+        ),
+        (
+            "Retries",
+            {"fields": ["retries", "retry_delay", "replaced_by"]},
+        ),
+        (
+            "Execution",
+            {"fields": ["worker", "error"]},
+        ),
+        (
+            "Output",
+            {"fields": ["stdout", "stderr", "result"]},
+        ),
+    ]
 
     def arguments_(self, obj):
         return format_html(
@@ -132,6 +158,20 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     list_filter = ["name", ScheduleQueueListFilter, "state"]
     actions = ["action_force_run"]
     readonly_fields = ["schedule_"]
+    fieldsets = [
+        (
+            None,
+            {"fields": ["icon", "name", "state", "schedule_"]},
+        ),
+        (
+            "Time",
+            {"fields": ["last_due_", "next_due_"]},
+        ),
+        (
+            "Execution",
+            {"fields": ["last_task_"]},
+        ),
+    ]
 
     def schedule_(self, obj):
         if not obj.schedule:
@@ -166,7 +206,7 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     @admin.display(description="Force run schedule")
     def action_force_run(self, request, queryset):
         for schedule_exec in queryset:
-            schedule_exec.schedule.execute(force=True)
+            schedule_exec.schedule.execute(dues=[None])
         self.message_user(
             request,
             f"{queryset.count()} schedules successfully executed",
@@ -188,6 +228,24 @@ class WorkerStatusAdmin(ReadOnlyAdmin):
     list_display_links = ["label"]
     ordering = ["-started", "label"]
     readonly_fields = ["state"]
+    fieldsets = [
+        (
+            None,
+            {"fields": ["icon", "label"]},
+        ),
+        (
+            "Queues",
+            {"fields": ["included_queues", "excluded_queues"]},
+        ),
+        (
+            "Time",
+            {"fields": ["timeout", "last_tick_", "started_", "stopped_"]},
+        ),
+        (
+            "Exit state",
+            {"fields": ["exit_code", "exit_log"]},
+        ),
+    ]
 
     @admin.display(ordering="last_tick")
     def last_tick_(self, obj):

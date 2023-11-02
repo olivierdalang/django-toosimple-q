@@ -374,7 +374,7 @@ pre-commit install
   - refactor: better names for models and decorators
   - infra: included a demo project
   - infra: improved testing, including for concurrency behaviour
-  - infra: updated compatibility to Django 3.2/4.1 and Python 3.8-3.10
+  - infra: updated compatibility to Django 3.2/4.1/4.2 and Python 3.8-3.11
   - quick migration guide:
     - rename `@schedule` -> `@schedule_task`
     - task name must now be provided as a kwarg: `@register_task("mytask")` -> `@register_task(name="mytask")`)

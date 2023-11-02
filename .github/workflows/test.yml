@@ -5,8 +5,6 @@ on:
     branches:
       - master
   pull_request:
-  schedule:
-    - cron: "0 0 * * 0" # weekly
 
 jobs:
   test-docker:
@@ -15,21 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       # all supported django version on lowest/highest supported python
-      # see https://docs.djangoproject.com/en/4.1/faq/install/#what-python-version-can-i-use-with-django
+      # see https://www.djangoproject.com/download/#supported-versions
+      # and https://docs.djangoproject.com/en/4.2/faq/install/#what-python-version-can-i-use-with-django
       matrix:
         include:
           - { dj: "3.2", db: "sqlite", py: "3.6" }
           - { dj: "3.2", db: "sqlite", py: "3.10" }
           - { dj: "3.2", db: "postgres", py: "3.6" }
           - { dj: "3.2", db: "postgres", py: "3.10" }
-          - { dj: "4.0", db: "sqlite", py: "3.8" }
-          - { dj: "4.0", db: "sqlite", py: "3.10" }
-          - { dj: "4.0", db: "postgres", py: "3.8" }
-          - { dj: "4.0", db: "postgres", py: "3.10" }
           - { dj: "4.1", db: "sqlite", py: "3.8" }
           - { dj: "4.1", db: "sqlite", py: "3.11" }
           - { dj: "4.1", db: "postgres", py: "3.8" }
           - { dj: "4.1", db: "postgres", py: "3.11" }
+          - { dj: "4.2", db: "sqlite", py: "3.8" }
+          - { dj: "4.2", db: "sqlite", py: "3.11" }
+          - { dj: "4.2", db: "postgres", py: "3.8" }
+          - { dj: "4.2", db: "postgres", py: "3.11" }
       fail-fast: false
 
     env:

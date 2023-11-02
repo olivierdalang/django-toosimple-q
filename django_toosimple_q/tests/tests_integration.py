@@ -1,12 +1,13 @@
 import re
 
+from django.core.management import call_command
 from django.test import TestCase
 
 
-class TestReadme(TestCase):
-    """Test code in the readme"""
-
+class TestIntegration(TestCase):
     def test_readme(self):
+        # Test code in the readme
+
         readme = open("README.md", "r").read()
 
         # This finds all ```python``` blocks
@@ -24,3 +25,12 @@ class TestReadme(TestCase):
                 raise Exception(
                     f"Invalid readme block:\n{hr}\n{python_block}{hr}"
                 ) from e
+
+    def test_makemigrations(self):
+        # Ensure migrations are up to date with model changes
+        try:
+            call_command("makemigrations", "--check", "--dry-run")
+        except SystemExit:
+            raise AssertionError(
+                "Migrations are not up to date. You need to run `makemigrations`."
+            )

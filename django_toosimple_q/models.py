@@ -112,6 +112,7 @@ class TaskExec(models.Model):
         return TaskExec.States.icon(self.state)
 
     def execute(self):
+        logger.info(f"{self} started")
         try:
             # Get the task from the registry
             task = tasks_registry[self.task_name]
@@ -120,6 +121,7 @@ class TaskExec(models.Model):
             stdout, stderr = io.StringIO(), io.StringIO()
             with redirect_stderr(stderr), redirect_stdout(stdout):
                 self.result = task.callable(*self.args, **self.kwargs)
+            logger.info(f"{self} succeeded")
             self.state = TaskExec.States.SUCCEEDED
         except Exception:
             logger.warning(f"{self} failed !")
@@ -219,6 +221,7 @@ class ScheduleExec(models.Model):
         did_something = False
 
         if self.next_dues:
+            logger.info(f"{self} is due ({len(self.next_dues)} occurences)")
             self.schedule.execute(self.next_dues)
             did_something = True
             self.last_due = self.next_dues[-1]
