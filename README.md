@@ -13,7 +13,6 @@ Features :
 - simple queuing syntax
 - cron-like scheduling
 - tasks.py autodiscovery
-- supports autoreload
 - django admin integration
 - tasks results stored using the Django ORM
 - replacement tasks on interruption
@@ -252,7 +251,6 @@ usage: manage.py worker [--queue QUEUE | --exclude_queue EXCLUDE_QUEUE]
                         [--once | --until_done]
                         [--label LABEL]
                         [--timeout TIMEOUT]
-                        [--reload {always,never}]
 
 optional arguments:
   --queue QUEUE         which queue to run (can be used several times, all
@@ -270,8 +268,6 @@ optional arguments:
   --timeout TIMEOUT     the time in seconds after which this worker will be considered
                         offline (set this to a value higher than the longest tasks this
                         worker will execute)
-  --reload {always,never}
-                        watch for changes (by default, watches if DEBUG=True)
 ```
 
 ## Contrib apps
@@ -306,7 +302,7 @@ docker compose build
 # run all tests
 docker compose run django test
 # or to run just a specific test
-docker compose run django test django_toosimple_q.tests.tests_worker.TestAutoreloadingWorker
+docker compose run django test django_toosimple_q.tests.tests_worker.TestWorker
 ```
 
 Tests are run automatically on github.
@@ -361,13 +357,10 @@ pre-commit install
 
 ## Changelog
 
-- 2023-01-09 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
-  - known issues:
-    - [ ] worker exit status not correctly set with autoreload
+- 2023-12-04 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
-  - feature: auto-reload when DEBUG is true
   - feature: support windows
   - refactor: removed non-execution related data from the database (clarifying the fact tha the source of truth is the registry)
   - refactor: better support for concurrent workers
