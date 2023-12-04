@@ -80,7 +80,7 @@ class Command(BaseCommand):
         self.once = options["once"]
         self.until_done = options["until_done"]
 
-        self.label = options["label"].replace(r"{pid}", os.getpid())
+        self.label = options["label"].replace(r"{pid}", f"{os.getpid()}")
 
         self.exit_requested = False
         self.simulate_exception = False
