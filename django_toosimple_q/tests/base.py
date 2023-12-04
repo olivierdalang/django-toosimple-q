@@ -128,7 +128,6 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
         until_done=True,
         once=False,
         skip_checks=True,
-        reload="never",
         verbosity=None,
         label=None,
         timeout=None,
@@ -154,8 +153,6 @@ class TooSimpleQBackgroundTestCase(TransactionTestCase):
             command.extend(["--once"])
         if skip_checks:
             command.extend(["--skip-checks"])
-        if reload:
-            command.extend(["--reload", str(reload)])
         if verbosity:
             command.extend(["--verbosity", str(verbosity)])
         if timeout:
