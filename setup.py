@@ -10,7 +10,8 @@ def get_version(*file_paths):
     version_file = open(filename).read()
     version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", version_file, re.M)
     if version_match:
-        return version_match.group(1)
+        version_str = version_match.group(1)
+        return "0.0.0-dev" if version_str == "dev" else version_str
     raise RuntimeError("Unable to find version string.")
 
 
