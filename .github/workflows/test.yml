@@ -56,6 +56,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Python version
+        uses: python --version
+
+      - name: Packages versions
+        uses: pip freeze --all
+
       - name: Setup postgres
         uses: ikalnytskyi/action-setup-postgres@v4
 
