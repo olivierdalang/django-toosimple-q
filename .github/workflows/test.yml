@@ -59,6 +59,9 @@ jobs:
       - name: Setup postgres
         uses: ikalnytskyi/action-setup-postgres@v4
 
+      - name: Update pip
+        run: pip install --upgrade pip
+
       - name: Install python deps
         run: pip install -r requirements-dev.txt
 
