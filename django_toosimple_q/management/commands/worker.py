@@ -2,14 +2,11 @@ import datetime
 import logging
 import os
 import signal
-import sys
 from traceback import format_exc
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
 from django.db.models import Case, Value, When
-from django.utils import autoreload
 from django.utils.timezone import now
 
 from ...logging import logger
@@ -64,12 +61,6 @@ class Command(BaseCommand):
             type=float,
             help="the time in seconds after which this worker will be considered offline (set this to a value higher than the longest tasks this worker will execute)",
         )
-        parser.add_argument(
-            "--reload",
-            choices=["default", "always", "never"],
-            default="default",
-            help="watch for changes (by default, watches if DEBUG=True)",
-        )
 
     def handle(self, *args, **options):
         # Handle interuption signals
@@ -81,9 +72,6 @@ class Command(BaseCommand):
         # Handle termination (raises KeyboardInterrupt)
         # Custom signal to provoke an artifical exception, used for testing only
 
-        # We store the PID in the environment, so it can be reused accross reloads
-        pid = os.environ.setdefault("TOOSIMPLEQ_PID", f"{os.getpid()}")
-
         # TODO: replace by simple-parsing
         self.queues = options["queue"] or []
         self.excluded_queues = options["exclude_queue"] or []
@@ -92,11 +80,7 @@ class Command(BaseCommand):
         self.once = options["once"]
         self.until_done = options["until_done"]
 
-        self.reloader_active = options["reload"] == "always" or (
-            settings.DEBUG and options["reload"] == "default"
-        )
-
-        self.label = options["label"].replace(r"{pid}", pid)
+        self.label = options["label"].replace(r"{pid}", os.getpid())
 
         self.exit_requested = False
         self.simulate_exception = False
@@ -115,15 +99,6 @@ class Command(BaseCommand):
             logger.setLevel(logging.INFO)
         else:
             logger.setLevel(logging.DEBUG)
-
-        if self.reloader_active:
-            logger.info(f"Running with reloader !")
-            autoreload.run_with_reloader(self.inner_run)
-        else:
-            self.inner_run()
-
-    def inner_run(self):
-        autoreload.raise_last_exception()
 
         # On startup, we report the worker went online
         logger.debug(f"Get or create worker instance")
@@ -174,9 +149,6 @@ class Command(BaseCommand):
 
         if self.worker_status.exit_code:
             raise CommandError(returncode=self.worker_status.exit_code) from exc
-
-        if self.reloader_active:
-            sys.exit(0)
 
     def do_loop(self) -> bool:
         """Runs one tick, returns True if it should continue looping"""
