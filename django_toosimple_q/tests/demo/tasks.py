@@ -52,7 +52,7 @@ def long_running():
     return text
 
 
-@schedule_task(cron="0 */30 * * * *", run_on_creation=True, queue="demo")
+@schedule_task(cron="manual", queue="demo")
 @register_task(name="cleanup", queue="demo", priority=-5)
 def cleanup():
     old_tasks_execs = TaskExec.objects.filter(

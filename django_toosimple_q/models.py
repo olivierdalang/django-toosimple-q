@@ -6,6 +6,7 @@ from typing import List
 
 from croniter import croniter, croniter_range
 from django.db import models
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
@@ -202,7 +203,7 @@ class ScheduleExec(models.Model):
         return ScheduleExec.States.icon(self.state)
 
     @cached_property
-    def next_dues(self):
+    def past_dues(self):
         if self.schedule.cron == "manual":
             # A manual schedule is never due
             return []
@@ -221,14 +222,21 @@ class ScheduleExec(models.Model):
 
         return dues
 
+    @cached_property
+    def upcomming_due(self):
+        if self.schedule.cron == "manual":
+            # A manual schedule is never due
+            return None
+
+        return croniter(self.schedule.cron, timezone.now()).get_next(datetime)
+
     def execute(self):
         did_something = False
 
-        if self.next_dues:
-            logger.info(f"{self} is due ({len(self.next_dues)} occurences)")
-            self.schedule.execute(self.next_dues)
+        if self.past_dues:
+            logger.info(f"{self} is due ({len(self.past_dues)} occurences)")
             did_something = True
-            self.last_due = self.next_dues[-1]
+            self.last_due = self.past_dues[-1]
 
         self.state = ScheduleExec.States.ACTIVE
         self.save()
