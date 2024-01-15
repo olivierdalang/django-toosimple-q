@@ -2,15 +2,16 @@ ARG TOOSIMPLEQ_PY_VERSION
 
 FROM python:$TOOSIMPLEQ_PY_VERSION
 
+RUN pip install --upgrade pip
+
 WORKDIR /app
 
-# Install app in editable mode
-ADD ./requirements.txt /app/requirements.txt
-ADD ./requirements-dev.txt /app/requirements-dev.txt
-RUN touch /app/README.md
-ADD ./django_toosimple_q/__init__.py /app/django_toosimple_q/__init__.py
-ADD ./setup.py /app/setup.py
-RUN pip install -r requirements-dev.txt
+# Install empty project (source added/mounted later)
+ENV SETUPTOOLS_SCM_PRETEND_VERSION 0.0.0
+ADD pyproject.toml ./
+RUN touch README.md
+RUN mkdir django_toosimple_q
+RUN pip install -e .[dev]
 
 # Override django version
 ARG TOOSIMPLEQ_DJ_VERSION

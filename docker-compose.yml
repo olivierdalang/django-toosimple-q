@@ -2,8 +2,7 @@
 
 version: "3"
 
-x-default-django:
-  &default-django
+x-default-django: &default-django
   build:
     context: .
     args:

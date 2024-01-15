@@ -337,7 +337,7 @@ Then connect on 127.0.0.1:8000/admin/
 To run tests locally without Docker (by default, tests runs against an in-memory sqlite database):
 
 ```shell
-pip install -r requirements-dev.txt
+pip install -e .[dev]
 python manage.py test
 ```
 
@@ -345,7 +345,7 @@ python manage.py test
 
 Code style is done with pre-commit :
 ```shell
-pip install -r requirements-dev.txt
+pip install -e .[dev]
 pre-commit install
 ```
 
