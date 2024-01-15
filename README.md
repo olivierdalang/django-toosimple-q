@@ -241,6 +241,17 @@ def morning_routine():
     return f"15 seconds passed !"
 ```
 
+Schedule's cron can also be set to `manual` in which case it never runs, but can only be triggered manually from the admin :
+```python
+from django_toosimple_q.decorators import register_task, schedule_task
+
+# A schedule that only runs when manually triggered
+@schedule_task(cron="manual")
+@register_task()
+def for_special_occasions():
+    return f"this was triggered manually !"
+```
+
 ### Management comment
 
 Besides standard django management commands arguments, the management command supports following arguments.

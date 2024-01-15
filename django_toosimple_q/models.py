@@ -203,6 +203,10 @@ class ScheduleExec(models.Model):
 
     @cached_property
     def next_dues(self):
+        if self.schedule.cron == "manual":
+            # A manual schedule is never due
+            return []
+
         if self.last_due is None:
             # If the schedule has no last due date (probaby create with run_on_creation), we run it
             return [croniter(self.schedule.cron, now()).get_prev(datetime)]
