@@ -235,7 +235,7 @@ class ScheduleExec(models.Model):
 
         if self.past_dues:
             logger.info(f"{self} is due ({len(self.past_dues)} occurences)")
-            self.schedule.execute(self.next_dues)
+            self.schedule.execute(self.past_dues)
             did_something = True
             self.last_due = self.past_dues[-1]
 
