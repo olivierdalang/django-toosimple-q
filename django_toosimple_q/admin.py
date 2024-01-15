@@ -1,6 +1,3 @@
-from datetime import datetime
-
-from croniter import croniter
 from django.contrib import admin
 from django.contrib.messages.constants import SUCCESS
 from django.template.defaultfilters import truncatechars
@@ -191,14 +188,17 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
 
     @admin.display()
     def next_due_(self, obj):
-        if obj.next_dues:
-            next_due = obj.next_dues[0]
+        if len(obj.past_dues) >= 1:
+            next_due = obj.past_dues[0]
         else:
-            next_due = croniter(obj.schedule.cron, timezone.now()).get_next(datetime)
+            next_due = obj.upcomming_due
+
+        if next_due is None:
+            return "never"
 
         formatted_next_due = short_naturaltime(next_due)
-        if len(obj.next_dues) > 1:
-            formatted_next_due += mark_safe(f" [×{len(obj.next_dues)}]")
+        if len(obj.past_dues) > 1:
+            formatted_next_due += mark_safe(f" [×{len(obj.past_dues)}]")
         if next_due < timezone.now():
             return mark_safe(f"<span style='color: red'>{formatted_next_due}</span>")
         return formatted_next_due

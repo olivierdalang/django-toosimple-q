@@ -122,6 +122,25 @@ class TestSchedules(TooSimpleQRegularTestCase):
         )
 
     @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
+    def test_manual_schedule(self, frozen_datetime):
+        """Testing manual schedules"""
+
+        @schedule_task(cron="manual", datetime_kwarg="scheduled_on")
+        @register_task(name="normal")
+        def a(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
+
+        self.assertEquals(len(schedules_registry), 1)
+        self.assertEquals(ScheduleExec.objects.count(), 0)
+        self.assertQueue(0)
+
+        # a "manual" schedule never runs
+        management.call_command("worker", "--until_done")
+        frozen_datetime.move_to("2050-01-01")
+        management.call_command("worker", "--until_done")
+        self.assertQueue(0)
+
+    @freeze_time("2020-01-01", as_kwarg="frozen_datetime")
     def test_invalid_schedule(self, frozen_datetime):
         """Testing invalid schedules"""
 
