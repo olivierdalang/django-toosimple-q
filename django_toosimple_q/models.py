@@ -204,6 +204,10 @@ class ScheduleExec(models.Model):
 
     @cached_property
     def past_dues(self):
+        if self.schedule is None:
+            # Deal with invalid schedule (e.g. deleted from the code but still in the DB)
+            return []
+
         if self.schedule.cron == "manual":
             # A manual schedule is never due
             return []
