@@ -40,3 +40,13 @@ class TestRegressionRegular(TooSimpleQRegularTestCase):
         # the admin view still works even for deleted schedules
         response = self.client.get("/admin/toosimpleq/scheduleexec/")
         self.assertEqual(response.status_code, 200)
+
+    def test_different_schedule_and_task(self):
+        # Regression test for an issue where schedule with a different name than the task would fail
+
+        @schedule_task(cron="0 12 * * *", name="name_a", run_on_creation=True)
+        @register_task(name="name_b")
+        def a():
+            return True
+
+        management.call_command("worker", "--until_done")

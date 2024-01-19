@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from .logging import logger
-from .registry import tasks_registry
 from .task import Task
 
 
@@ -42,9 +41,7 @@ class Schedule:
             if self.datetime_kwarg:
                 dt_kwarg = {self.datetime_kwarg: due}
 
-            tasks_registry[self.name].enqueue(
-                *self.args, due=due, **dt_kwarg, **self.kwargs
-            )
+            self.task.enqueue(*self.args, due=due, **dt_kwarg, **self.kwargs)
 
     def __str__(self):
         return f"Schedule {self.name}"
