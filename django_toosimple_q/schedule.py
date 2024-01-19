@@ -35,6 +35,7 @@ class Schedule:
         """Enqueues the related tasks at the given due dates"""
 
         # We enqueue the due tasks
+        last_task = None
         for due in dues:
             logger.debug(f"{self} is due at {due}")
 
@@ -42,9 +43,10 @@ class Schedule:
             if self.datetime_kwarg:
                 dt_kwarg = {self.datetime_kwarg: due}
 
-            tasks_registry[self.name].enqueue(
+            last_task = tasks_registry[self.name].enqueue(
                 *self.args, due=due, **dt_kwarg, **self.kwargs
             )
+        return last_task
 
     def __str__(self):
         return f"Schedule {self.name}"
