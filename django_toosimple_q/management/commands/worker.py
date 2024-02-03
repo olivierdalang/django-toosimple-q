@@ -3,6 +3,7 @@ import logging
 import os
 import signal
 from traceback import format_exc
+from time import sleep
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
@@ -241,7 +242,7 @@ class Command(BaseCommand):
             logger.debug(f"Waiting for next tick...")
             next_run = last_run + datetime.timedelta(seconds=self.tick_duration)
             while not self.exit_requested and now() < next_run:
-                pass
+                sleep(1)
 
         return True
 
