@@ -2,8 +2,8 @@ import datetime
 import logging
 import os
 import signal
-from traceback import format_exc
 from time import sleep
+from traceback import format_exc
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
