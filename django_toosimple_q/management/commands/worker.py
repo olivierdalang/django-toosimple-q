@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import signal
+from time import sleep
 from traceback import format_exc
 
 from django.core.management.base import BaseCommand, CommandError
@@ -65,10 +66,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Handle interuption signals
         signal.signal(signal.SIGINT, self.handle_signal)
-        # signal.signal(signal.SIGTERM, self.handle_signal)
-        signal.signal(signal.SIGTERM, signal.default_int_handler)
-        # for simulating an exception in tests
+        signal.signal(signal.SIGTERM, self.handle_signal)
+        # Custom signal to provoke an artifical exception, used for testing only
         if hasattr(signal, "SIGUSR1"):
+            # this doesn't exist on Windows
             signal.signal(signal.SIGUSR1, self.handle_signal)
 
         # TODO: replace by simple-parsing
@@ -243,7 +244,7 @@ class Command(BaseCommand):
             logger.debug(f"Waiting for next tick...")
             next_run = last_run + datetime.timedelta(seconds=self.tick_duration)
             while not self.exit_requested and now() < next_run:
-                pass
+                sleep(1)
 
         return True
 

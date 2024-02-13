@@ -188,6 +188,10 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
 
     @admin.display()
     def next_due_(self, obj):
+        # for schedule not in the code anymore
+        if not obj.schedule:
+            return "invalid"
+
         if len(obj.past_dues) >= 1:
             next_due = obj.past_dues[0]
         else:
