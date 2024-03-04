@@ -135,3 +135,22 @@ class TestAdmin(TooSimpleQRegularTestCase):
 
         self.assertQueue(2, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(0, state=TaskExec.States.QUEUED)
+
+    def test_task_admin_result_preview(self):
+        """Check the the task results correctly displays, including if long"""
+
+        @register_task()
+        def a(length):
+            return "o" * length
+
+        # a short result appears as is
+        a.queue(length=10)
+        management.call_command("worker", "--until_done")
+        response = self.client.get("/admin/toosimpleq/taskexec/", follow=True)
+        self.assertContains(response, "o" * 10)
+
+        # a long results gets trimmed
+        a.queue(length=300)
+        management.call_command("worker", "--until_done")
+        response = self.client.get("/admin/toosimpleq/taskexec/", follow=True)
+        self.assertContains(response, "o" * 254 + "…")

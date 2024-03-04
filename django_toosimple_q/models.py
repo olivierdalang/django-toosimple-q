@@ -6,6 +6,7 @@ from typing import List
 
 from croniter import croniter, croniter_range
 from django.db import models
+from django.template.defaultfilters import truncatechars
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.timezone import now
@@ -86,6 +87,9 @@ class TaskExec(models.Model):
         max_length=32, choices=States.choices, default=States.QUEUED
     )
     result = PickledObjectField(blank=True, null=True)
+    result_preview = models.CharField(
+        max_length=255, blank=True, null=True, editable=False
+    )
     error = models.TextField(blank=True, null=True)
     replaced_by = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL
@@ -122,6 +126,7 @@ class TaskExec(models.Model):
             stdout, stderr = io.StringIO(), io.StringIO()
             with redirect_stderr(stderr), redirect_stdout(stdout):
                 self.result = task.callable(*self.args, **self.kwargs)
+                self.result_preview = truncatechars(str(self.result), 255)
             logger.info(f"{self} succeeded")
             self.state = TaskExec.States.SUCCEEDED
         except Exception:

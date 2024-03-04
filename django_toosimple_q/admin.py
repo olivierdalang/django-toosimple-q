@@ -61,7 +61,7 @@ class TaskExecAdmin(ReadOnlyAdmin):
         "started_",
         "finished_",
         "replaced_by_",
-        "result_",
+        "result_preview",
         "task_",
     ]
     list_display_links = ["task_name"]
@@ -96,15 +96,18 @@ class TaskExecAdmin(ReadOnlyAdmin):
         ),
     ]
 
+    def get_queryset(self, request):
+        # defer stdout, stderr and results which may host large values
+        qs = super().get_queryset(request)
+        qs = qs.defer("stdout", "stderr", "result")
+        return qs
+
     def arguments_(self, obj):
         return format_html(
             "{}<br/>{}",
             truncatechars(str(obj.args), 32),
             truncatechars(str(obj.kwargs), 32),
         )
-
-    def result_(self, obj):
-        return truncatechars(str(obj.result), 32)
 
     @admin.display(ordering="due")
     def due_(self, obj):
