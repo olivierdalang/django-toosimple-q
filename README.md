@@ -377,6 +377,7 @@ pre-commit install
   - refactor: removed non-execution related data from the database (clarifying the fact tha the source of truth is the registry)
   - refactor: better support for concurrent workers
   - refactor: better names for models and decorators
+  - refactor: optimise task exec admin listing when `results`, `stdout` or `stderr` holds large data
   - infra: included a demo project
   - infra: improved testing, including for concurrency behaviour
   - infra: updated compatibility to Django 3.2/4.1/4.2 and Python 3.8-3.11
