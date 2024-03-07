@@ -319,7 +319,7 @@ def short_seconds(seconds, additional_details=0):
 def short_naturaltime(datetime):
     if datetime is None:
         return None
-    seconds = (timezone.now() - datetime).seconds
+    seconds = (timezone.now() - datetime).total_seconds()
     text = short_seconds(seconds)
     shorttime = f"in&nbsp;{text}" if seconds < 0 else f"{text}&nbsp;ago"
     longtime = date_format(datetime, format="DATETIME_FORMAT", use_l10n=True)
