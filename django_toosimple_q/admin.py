@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.contrib.messages.constants import SUCCESS
+from django.db.models import F
+from django.db.models.functions import Coalesce
 from django.template.defaultfilters import truncatechars
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -56,10 +58,8 @@ class TaskExecAdmin(ReadOnlyAdmin):
         "icon",
         "task_name",
         "arguments_",
-        "due_",
-        "created_",
-        "started_",
-        "finished_",
+        "timestamp_",
+        "execution_time_",
         "replaced_by_",
         "result_preview",
         "task_",
@@ -100,6 +100,11 @@ class TaskExecAdmin(ReadOnlyAdmin):
         # defer stdout, stderr and results which may host large values
         qs = super().get_queryset(request)
         qs = qs.defer("stdout", "stderr", "result")
+        # aggregate time for an unique field
+        qs = qs.annotate(
+            sortable_time=Coalesce("finished", "started", "due", "created"),
+            execution_time=F("finished") - F("started"),
+        )
         return qs
 
     def arguments_(self, obj):
@@ -124,6 +129,24 @@ class TaskExecAdmin(ReadOnlyAdmin):
     @admin.display(ordering="finished")
     def finished_(self, obj):
         return short_naturaltime(obj.finished)
+
+    @admin.display(ordering="sortable_time")
+    def timestamp_(self, obj):
+        if obj.finished:
+            label = "finished"
+        elif obj.started:
+            label = "started"
+        elif obj.due:
+            label = "due"
+        else:
+            label = "created"
+        return mark_safe(f"{short_naturaltime(obj.sortable_time)} [{label}]")
+
+    @admin.display(ordering="execution_time")
+    def execution_time_(self, obj):
+        if not obj.execution_time:
+            return None
+        return short_seconds(obj.execution_time.seconds, additional_details=1)
 
     def replaced_by_(self, obj):
         if obj.replaced_by:
@@ -267,30 +290,37 @@ class WorkerStatusAdmin(ReadOnlyAdmin):
         return short_naturaltime(obj.stopped)
 
 
-def short_naturaltime(datetime):
-    if datetime is None:
+def short_seconds(seconds, additional_details=0):
+    if seconds is None:
         return None
-
     disps = [
-        (60, "s"),
-        (60 * 60, "m"),
-        (60 * 60 * 24, "h"),
-        (60 * 60 * 24 * 7, "D"),
-        (60 * 60 * 24 * 30, "W"),
-        (60 * 60 * 24 * 365, "M"),
-        (float("inf"), "Y"),
+        (60, "second"),
+        (60 * 60, "minute"),
+        (60 * 60 * 24, "hour"),
+        (60 * 60 * 24 * 7, "day"),
+        (60 * 60 * 24 * 30, "week"),
+        (60 * 60 * 24 * 365, "month"),
+        (float("inf"), "year"),
     ]
-
-    delta = timezone.now() - datetime
-    seconds = delta.total_seconds()
-
     last_v = 1
     for threshold, abbr in disps:
         if abs(seconds) < threshold:
-            text = f"{int(abs(seconds) // last_v)}{abbr}"
-            break
+            count = int(abs(seconds) // last_v)
+            plural = "s" if count > 1 else ""
+            text = f"{count} {abbr}{plural}"
+            if additional_details:
+                remainder = seconds - count * last_v
+                if remainder > 0:
+                    text += " " + short_seconds(remainder, additional_details - 1)
+            return text
         last_v = threshold
 
+
+def short_naturaltime(datetime):
+    if datetime is None:
+        return None
+    seconds = (timezone.now() - datetime).seconds
+    text = short_seconds(seconds)
     shorttime = f"in&nbsp;{text}" if seconds < 0 else f"{text}&nbsp;ago"
     longtime = date_format(datetime, format="DATETIME_FORMAT", use_l10n=True)
     return mark_safe(f'<span title="{escape(longtime)}">{shorttime}</span>')
