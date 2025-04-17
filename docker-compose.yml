@@ -7,13 +7,13 @@ x-default-django:
   build:
     context: .
     args:
-      TOOSIMPLEQ_DJ_VERSION: ${TOOSIMPLEQ_DJ_VERSION:-4.1}
+      TOOSIMPLEQ_DJ_VERSION: ${TOOSIMPLEQ_DJ_VERSION:-5.0}
       TOOSIMPLEQ_PY_VERSION: ${TOOSIMPLEQ_PY_VERSION:-3.11}
   depends_on:
     postgres:
       condition: service_healthy
     toxiproxy-config:
-      condition: service_completed_successfully
+      condition: service_started
   environment:
     TOOSIMPLEQ_TEST_DB: ${TOOSIMPLEQ_TEST_DB:-postgres}
     POSTGRES_HOST: postgres
