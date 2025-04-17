@@ -25,6 +25,9 @@ class TaskExec(models.Model):
 
     class Meta:
         verbose_name = "Task Execution"
+        permissions = [
+            ("requeue_taskexec", "Can requeue tasks"),
+        ]
 
     class States(models.TextChoices):
         SLEEPING = "SLEEPING", _("Sleeping")
@@ -169,6 +172,9 @@ class TaskExec(models.Model):
 class ScheduleExec(models.Model):
     class Meta:
         verbose_name = "Schedule Execution"
+        permissions = [
+            ("force_run_scheduleexec", "Can force execution of schedules"),
+        ]
 
     class States(models.TextChoices):
         ACTIVE = "ACTIVE", _("Active")
