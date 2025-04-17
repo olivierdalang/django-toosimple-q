@@ -157,6 +157,12 @@ class TaskExecAdmin(ReadOnlyAdmin):
             return None
         return render_to_string("toosimpleq/task.html", {"task": obj.task})
 
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.has_perm("toosimpleq.requeue_taskexec"):
+            actions.pop("action_requeue", None)
+        return actions
+
     @admin.display(description="Requeue task")
     def action_requeue(self, request, queryset):
         for task in queryset:
@@ -232,6 +238,12 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
         if next_due < timezone.now():
             return mark_safe(f"<span style='color: red'>{formatted_next_due}</span>")
         return formatted_next_due
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.has_perm("toosimpleq.force_run_scheduleexec"):
+            actions.pop("action_force_run", None)
+        return actions
 
     @admin.display(description="Force run schedule")
     def action_force_run(self, request, queryset):

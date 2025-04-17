@@ -373,6 +373,7 @@ pre-commit install
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
   - feature: allow manual schedules that are only run manually through the admin  (`@schedule_task(cron="manual")`)
+  - feature: custom permissions to force run schedules and to requeue tasks
   - refactor: removed non-execution related data from the database (clarifying the fact tha the source of truth is the registry)
   - refactor: better support for concurrent workers
   - refactor: better names for models and decorators

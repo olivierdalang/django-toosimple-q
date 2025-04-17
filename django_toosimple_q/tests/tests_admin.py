@@ -1,4 +1,7 @@
+from django.contrib import admin
+from django.contrib.auth.models import Permission, User
 from django.core import management
+from django.test import RequestFactory
 
 from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import ScheduleExec, TaskExec
@@ -154,3 +157,32 @@ class TestAdmin(TooSimpleQRegularTestCase):
         management.call_command("worker", "--until_done")
         response = self.client.get("/admin/toosimpleq/taskexec/", follow=True)
         self.assertContains(response, "o" * 254 + "…")
+
+    def test_admin_actions_permissions(self):
+        """Check that admin actions are only available with the correct permissions"""
+
+        perms = Permission.objects.filter(
+            codename__in=["force_run_scheduleexec", "requeue_taskexec"]
+        )
+
+        request_with = RequestFactory().get("/some-url/")
+        request_with.user = User.objects.create(username="mike")
+        request_with.user.user_permissions.set(perms)
+
+        request_without = RequestFactory().get("/some-url/")
+        request_without.user = User.objects.create(username="peter")
+
+        # prefer admin.site.get_model_admin(TaskExec) once we drop support for 4.2
+        task_model_admin = admin.site._registry[TaskExec]
+        schedule_model_admin = admin.site._registry[ScheduleExec]
+
+        self.assertCountEqual(
+            task_model_admin.get_actions(request_with).keys(), ["action_requeue"]
+        )
+        self.assertCountEqual(
+            schedule_model_admin.get_actions(request_with).keys(), ["action_force_run"]
+        )
+        self.assertCountEqual(task_model_admin.get_actions(request_without).keys(), [])
+        self.assertCountEqual(
+            schedule_model_admin.get_actions(request_without).keys(), []
+        )
