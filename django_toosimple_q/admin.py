@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib.admin.models import CHANGE, LogEntry
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.messages.constants import SUCCESS
 from django.db.models import F
 from django.db.models.functions import Coalesce
@@ -166,7 +168,17 @@ class TaskExecAdmin(ReadOnlyAdmin):
     @admin.display(description="Requeue task")
     def action_requeue(self, request, queryset):
         for task in queryset:
-            tasks_registry[task.task_name].enqueue(*task.args, **task.kwargs)
+            new_task = tasks_registry[task.task_name].enqueue(*task.args, **task.kwargs)
+            LogEntry.objects.log_action(
+                user_id=request.user.id,
+                content_type_id=ContentType.objects.get_for_model(task).pk,
+                object_id=task.pk,
+                object_repr=str(task),
+                action_flag=CHANGE,
+                change_message=(
+                    f"Requeued task through admin action (new task id: {new_task.pk})"
+                ),
+            )
         self.message_user(
             request, f"{queryset.count()} tasks successfully requeued", level=SUCCESS
         )
@@ -248,6 +260,14 @@ class ScheduleExecAdmin(ReadOnlyAdmin):
     @admin.display(description="Force run schedule")
     def action_force_run(self, request, queryset):
         for schedule_exec in queryset:
+            LogEntry.objects.log_action(
+                user_id=request.user.id,
+                content_type_id=ContentType.objects.get_for_model(schedule_exec).pk,
+                object_id=schedule_exec.pk,
+                object_repr=str(schedule_exec),
+                action_flag=CHANGE,
+                change_message=("Forced schedule execution through admin action"),
+            )
             schedule_exec.schedule.execute(dues=[None])
         self.message_user(
             request,

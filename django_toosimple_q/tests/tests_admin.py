@@ -1,5 +1,7 @@
 from django.contrib import admin
+from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.auth.models import Permission, User
+from django.contrib.contenttypes.models import ContentType
 from django.core import management
 from django.test import RequestFactory
 
@@ -107,6 +109,15 @@ class TestAdmin(TooSimpleQRegularTestCase):
         self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(0, state=TaskExec.States.QUEUED)
 
+        # ensure the action gets logged
+        self.assertEqual(
+            LogEntry.objects.filter(
+                content_type_id=ContentType.objects.get_for_model(ScheduleExec).pk,
+                action_flag=CHANGE,
+            ).count(),
+            1,
+        )
+
     def test_task_admin_requeue_action(self):
         """Check if the requeue action works"""
 
@@ -138,6 +149,15 @@ class TestAdmin(TooSimpleQRegularTestCase):
 
         self.assertQueue(2, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(0, state=TaskExec.States.QUEUED)
+
+        # ensure the action gets logged
+        self.assertEqual(
+            LogEntry.objects.filter(
+                content_type_id=ContentType.objects.get_for_model(TaskExec).pk,
+                action_flag=CHANGE,
+            ).count(),
+            1,
+        )
 
     def test_task_admin_result_preview(self):
         """Check the the task results correctly displays, including if long"""

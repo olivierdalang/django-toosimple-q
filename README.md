@@ -368,12 +368,13 @@ pre-commit install
 
 ## Changelog
 
-- 2023-12-04 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+- 2025-04-17 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
   - feature: allow manual schedules that are only run manually through the admin  (`@schedule_task(cron="manual")`)
   - feature: custom permissions to force run schedules and to requeue tasks
+  - feature: log admin actions
   - refactor: removed non-execution related data from the database (clarifying the fact tha the source of truth is the registry)
   - refactor: better support for concurrent workers
   - refactor: better names for models and decorators
