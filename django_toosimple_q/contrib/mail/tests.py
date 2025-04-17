@@ -31,13 +31,13 @@ class TestMail(TooSimpleQRegularTestCase):
 
         self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
-        self.assertEquals(len(mail.outbox), 0)
+        self.assertEqual(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
         self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(1)
-        self.assertEquals(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 1)
 
     @override_settings(
         EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",
@@ -61,13 +61,13 @@ class TestMail(TooSimpleQRegularTestCase):
 
         self.assertQueue(2, state=TaskExec.States.QUEUED)
         self.assertQueue(2)
-        self.assertEquals(len(mail.outbox), 0)
+        self.assertEqual(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
         self.assertQueue(2, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(2)
-        self.assertEquals(len(mail.outbox), 2)
+        self.assertEqual(len(mail.outbox), 2)
 
     @override_settings(
         EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",
@@ -91,13 +91,13 @@ class TestMail(TooSimpleQRegularTestCase):
 
         self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
-        self.assertEquals(len(mail.outbox), 0)
+        self.assertEqual(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
         self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(1)
-        self.assertEquals(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 1)
 
     @override_settings(
         EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",
@@ -116,13 +116,13 @@ class TestMail(TooSimpleQRegularTestCase):
 
         self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
-        self.assertEquals(len(mail.outbox), 0)
+        self.assertEqual(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
         self.assertQueue(1, state=TaskExec.States.SUCCEEDED)
         self.assertQueue(1)
-        self.assertEquals(len(mail.outbox), 3)
+        self.assertEqual(len(mail.outbox), 3)
 
     @override_settings(
         EMAIL_BACKEND="django_toosimple_q.contrib.mail.backend.QueueBackend",
@@ -140,11 +140,11 @@ class TestMail(TooSimpleQRegularTestCase):
 
         self.assertQueue(1, state=TaskExec.States.QUEUED)
         self.assertQueue(1)
-        self.assertEquals(len(mail.outbox), 0)
+        self.assertEqual(len(mail.outbox), 0)
 
         management.call_command("worker", "--until_done")
 
         self.assertQueue(1, state=TaskExec.States.FAILED, replaced=True)
         self.assertQueue(1, state=TaskExec.States.SLEEPING)
         self.assertQueue(2)
-        self.assertEquals(len(mail.outbox), 0)
+        self.assertEqual(len(mail.outbox), 0)

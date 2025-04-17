@@ -40,8 +40,8 @@ class TestSchedules(TooSimpleQRegularTestCase):
         def d(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        self.assertEquals(len(schedules_registry), 4)
-        self.assertEquals(ScheduleExec.objects.count(), 0)
+        self.assertEqual(len(schedules_registry), 4)
+        self.assertEqual(ScheduleExec.objects.count(), 0)
         self.assertQueue(0)
 
         management.call_command("worker", "--until_done")
@@ -130,8 +130,8 @@ class TestSchedules(TooSimpleQRegularTestCase):
         def a(scheduled_on):
             return f"{scheduled_on:%Y-%m-%d %H:%M}"
 
-        self.assertEquals(len(schedules_registry), 1)
-        self.assertEquals(ScheduleExec.objects.count(), 0)
+        self.assertEqual(len(schedules_registry), 1)
+        self.assertEqual(ScheduleExec.objects.count(), 0)
         self.assertQueue(0)
 
         # a "manual" schedule never runs

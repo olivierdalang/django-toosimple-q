@@ -1,5 +1,5 @@
 # tests
-freezegun==1.2.1
+freezegun==1.5.1
 psycopg2==2.*
 
 # devenv
