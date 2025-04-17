@@ -17,18 +17,18 @@ jobs:
       # and https://docs.djangoproject.com/en/4.2/faq/install/#what-python-version-can-i-use-with-django
       matrix:
         include:
-          - { dj: "3.2", db: "sqlite", py: "3.6" }
-          - { dj: "3.2", db: "sqlite", py: "3.10" }
-          - { dj: "3.2", db: "postgres", py: "3.6" }
-          - { dj: "3.2", db: "postgres", py: "3.10" }
-          - { dj: "4.1", db: "sqlite", py: "3.8" }
-          - { dj: "4.1", db: "sqlite", py: "3.11" }
-          - { dj: "4.1", db: "postgres", py: "3.8" }
-          - { dj: "4.1", db: "postgres", py: "3.11" }
           - { dj: "4.2", db: "sqlite", py: "3.8" }
-          - { dj: "4.2", db: "sqlite", py: "3.11" }
+          - { dj: "4.2", db: "sqlite", py: "3.12" }
           - { dj: "4.2", db: "postgres", py: "3.8" }
-          - { dj: "4.2", db: "postgres", py: "3.11" }
+          - { dj: "4.2", db: "postgres", py: "3.12" }
+          - { dj: "5.1", db: "sqlite", py: "3.10" }
+          - { dj: "5.1", db: "sqlite", py: "3.12" }
+          - { dj: "5.1", db: "postgres", py: "3.10" }
+          - { dj: "5.1", db: "postgres", py: "3.12" }
+          - { dj: "5.2", db: "sqlite", py: "3.10" }
+          - { dj: "5.2", db: "sqlite", py: "3.13" }
+          - { dj: "5.2", db: "postgres", py: "3.10" }
+          - { dj: "5.2", db: "postgres", py: "3.13" }
       fail-fast: false
 
     env:
