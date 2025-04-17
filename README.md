@@ -380,7 +380,7 @@ pre-commit install
   - refactor: optimise task exec admin listing when `results`, `stdout` or `stderr` holds large data
   - infra: included a demo project
   - infra: improved testing, including for concurrency behaviour
-  - infra: updated compatibility to Django 3.2/4.1/4.2 and Python 3.8-3.11
+  - infra: updated compatibility to Django 4.2/5.1/5.2 and Python 3.8-3.13
   - quick migration guide:
     - rename `@schedule` -> `@schedule_task`
     - task name must now be provided as a kwarg: `@register_task("mytask")` -> `@register_task(name="mytask")`)
