@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v1
 
       - name: Lint with pre-commit
-        uses: pre-commit/action@v2.0.2
+        uses: pre-commit/action@v3.0.1
 
       - name: Docker build
         run: docker compose build

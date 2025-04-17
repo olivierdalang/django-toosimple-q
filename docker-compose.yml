@@ -10,8 +10,10 @@ x-default-django:
       TOOSIMPLEQ_DJ_VERSION: ${TOOSIMPLEQ_DJ_VERSION:-4.1}
       TOOSIMPLEQ_PY_VERSION: ${TOOSIMPLEQ_PY_VERSION:-3.11}
   depends_on:
-    - postgres
-    - toxiproxy-config
+    postgres:
+      condition: service_healthy
+    toxiproxy-config:
+      condition: service_completed_successfully
   environment:
     TOOSIMPLEQ_TEST_DB: ${TOOSIMPLEQ_TEST_DB:-postgres}
     POSTGRES_HOST: postgres
@@ -37,13 +39,19 @@ services:
     image: postgres
     environment:
       POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD", "bash", "-c", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 6
+      start_period: 1s
     ports:
       - 5432:5432
 
   postgres-laggy:
     image: ghcr.io/shopify/toxiproxy
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       POSTGRES_PASSWORD: postgres
     ports:
@@ -52,7 +60,8 @@ services:
   toxiproxy-config:
     image: docker:cli
     depends_on:
-      - postgres-laggy
+      postgres-laggy:
+        condition: service_started
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: |
