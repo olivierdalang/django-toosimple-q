@@ -1,6 +1,7 @@
 # Django Too Simple Queue
 
-[![PyPI version](https://badge.fury.io/py/django-toosimple-q.svg)](https://pypi.org/project/django-toosimple-q/) ![Workflow](https://github.com/olivierdalang/django-toosimple-q/workflows/ci/badge.svg)
+[![PyPI version](https://badge.fury.io/py/django-toosimple-q.svg)](https://pypi.org/project/django-toosimple-q/)
+[![test](https://github.com/olivierdalang/django-toosimple-q/actions/workflows/test.yml/badge.svg)](https://github.com/olivierdalang/django-toosimple-q/actions/workflows/test.yml)
 
 This packages provides a simplistic task queue and scheduler for Django.
 
