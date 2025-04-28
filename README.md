@@ -373,6 +373,7 @@ pre-commit install
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
+  - feature: support windows
   - feature: allow manual schedules that are only run manually through the admin  (`@schedule_task(cron="manual")`)
   - feature: custom permissions to force run schedules and to requeue tasks
   - feature: log admin actions
