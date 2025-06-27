@@ -137,7 +137,7 @@ class Command(BaseCommand):
 
         except Exception as e:
             exc = e
-            logger.critical(f"Crashed unhandled exception: {e}")
+            logger.exception(e)
             self.worker_status.exit_code = WorkerStatus.ExitCodes.CRASHED.value
             self.worker_status.exit_log = format_exc()
 
