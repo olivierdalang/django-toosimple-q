@@ -282,6 +282,10 @@ optional arguments:
                         worker will execute)
 ```
 
+### Logging
+
+The package logs to the `toosimpleq` logger. Please refer to the Django docs to see how to configure this. If no handler is defined, a default handler will be added that outputs the logs to the console.
+
 ## Contrib apps
 
 ### django_toosimple_q.contrib.mail
