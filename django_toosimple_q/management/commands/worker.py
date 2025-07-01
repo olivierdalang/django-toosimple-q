@@ -64,6 +64,13 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        try:
+            self._handle(*args, **options)
+        except Exception as e:
+            logger.exception(e)
+            raise e
+
+    def _handle(self, *args, **options):
         # Handle interuption signals
         signal.signal(signal.SIGINT, self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
@@ -137,7 +144,7 @@ class Command(BaseCommand):
 
         except Exception as e:
             exc = e
-            logger.critical(f"Crashed unhandled exception: {e}")
+            logger.exception(e)
             self.worker_status.exit_code = WorkerStatus.ExitCodes.CRASHED.value
             self.worker_status.exit_log = format_exc()
 
