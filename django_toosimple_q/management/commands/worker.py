@@ -64,6 +64,13 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        try:
+            self._handle(*args, **options)
+        except Exception as e:
+            logger.exception(e)
+            raise e
+
+    def _handle(self, *args, **options):
         # Handle interuption signals
         signal.signal(signal.SIGINT, self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
