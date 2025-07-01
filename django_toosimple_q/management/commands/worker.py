@@ -64,6 +64,16 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        if not logger.hasHandlers():
+            # log to console in case no loggers are configured
+            default_formatter = logging.Formatter(
+                "[%(asctime)s][%(levelname)s][toosimpleq] %(message)s",
+                "%Y-%m-%d %H:%M:%S",
+            )
+            default_handler = logging.StreamHandler()
+            default_handler.setFormatter(default_formatter)
+            logger.addHandler(default_handler)
+
         try:
             self._handle(*args, **options)
         except Exception as e:
