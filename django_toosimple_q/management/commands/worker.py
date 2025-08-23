@@ -75,7 +75,9 @@ class Command(BaseCommand):
         signal.signal(signal.SIGINT, self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
         # Custom signal to provoke an artifical exception, used for testing only
-        signal.signal(signal.SIGUSR1, self.handle_signal)
+        if hasattr(signal, "SIGUSR1"):
+            # this doesn't exist on Windows
+            signal.signal(signal.SIGUSR1, self.handle_signal)
 
         # TODO: replace by simple-parsing
         self.queues = options["queue"] or []
@@ -255,7 +257,7 @@ class Command(BaseCommand):
 
     def handle_signal(self, sig, stackframe):
         # For testing, simulates a unexpected crash of the worker
-        if sig == signal.SIGUSR1:
+        if hasattr(signal, "SIGUSR1") and sig == signal.SIGUSR1:
             self.simulate_exception = True
             return
 
