@@ -371,7 +371,7 @@ pre-commit install
 
 ## Changelog
 
-- 2025-04-17 : v1.0.0b **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
+- 2025-09-01 : v1.0.0 **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
   - feature: assign queues to schedules (`@schedule_task(queue="schedules")`)
