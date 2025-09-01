@@ -261,6 +261,7 @@ Besides standard django management commands arguments, the management command su
 usage: manage.py worker [--queue QUEUE | --exclude_queue EXCLUDE_QUEUE]
                         [--tick TICK]
                         [--once | --until_done]
+                        [--no_schedules]
                         [--label LABEL]
                         [--timeout TIMEOUT]
 
@@ -275,6 +276,7 @@ optional arguments:
   --once                run once then exit (useful for debugging)
   --until_done          run until no tasks are available then exit (useful for
                         debugging)
+  --no_schedules        do not process schedules
   --label LABEL         the name of the worker to help identifying it ('{pid}'
                         will be replaced by the process id)
   --timeout TIMEOUT     the time in seconds after which this worker will be considered

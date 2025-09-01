@@ -298,3 +298,50 @@ class TestSchedules(TooSimpleQRegularTestCase):
         self.assertSchedule("f", ScheduleExec.States.ACTIVE)
         self.assertSchedule("g", ScheduleExec.States.ACTIVE)
         self.assertSchedule("h", ScheduleExec.States.ACTIVE)
+
+    def test_no_schedules(self):
+        """Checking named queues"""
+
+        @schedule_task(cron="0 * * * *", run_on_creation=True)
+        @register_task(name="a")
+        def a():
+            return True
+
+        @schedule_task(cron="0 * * * *", run_on_creation=True)
+        @register_task(name="b")
+        def b():
+            return True
+
+        a.queue()
+
+        self.assertSchedule("a", None)
+        self.assertSchedule("b", None)
+        self.assertQueue(1, "a", TaskExec.States.QUEUED)
+        self.assertQueue(0, "b")
+
+        # runninng with --no_schedules doesn't populate schedules but runs tasks
+        management.call_command("worker", "--until_done", "--no_schedules")
+
+        print(TaskExec.objects.all().last().error)
+
+        self.assertSchedule("a", None)
+        self.assertSchedule("b", None)
+        self.assertQueue(1, "a", TaskExec.States.SUCCEEDED)
+        self.assertQueue(0, "b")
+
+        # runninng with --no_schedules doesn't pickup existing schedules either
+        ScheduleExec.objects.create(name="a", state=ScheduleExec.States.INVALID)
+        management.call_command("worker", "--until_done", "--no_schedules")
+
+        self.assertSchedule("a", ScheduleExec.States.INVALID)
+        self.assertSchedule("b", None)
+        self.assertQueue(1, "a", TaskExec.States.SUCCEEDED)
+        self.assertQueue(0, "b")
+
+        # just ensure schedules work as expected without --no_schedules
+        management.call_command("worker", "--until_done")
+
+        self.assertSchedule("a", ScheduleExec.States.ACTIVE)
+        self.assertSchedule("b", ScheduleExec.States.ACTIVE)
+        self.assertQueue(2, "a", TaskExec.States.SUCCEEDED)
+        self.assertQueue(1, "b", TaskExec.States.SUCCEEDED)

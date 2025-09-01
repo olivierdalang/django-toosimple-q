@@ -45,6 +45,12 @@ class Command(BaseCommand):
         )
 
         parser.add_argument(
+            "--no_schedules",
+            action="store_true",
+            help="do not process schedules",
+        )
+
+        parser.add_argument(
             "--tick",
             default=10.0,
             type=float,
@@ -81,10 +87,10 @@ class Command(BaseCommand):
         self.queues = options["queue"] or []
         self.excluded_queues = options["exclude_queue"] or []
         self.tick_duration = options["tick"]
-        self.timeout = options["timeout"]
         self.once = options["once"]
         self.until_done = options["until_done"]
-
+        self.no_schedules = options["no_schedules"]
+        self.timeout = options["timeout"]
         self.label = options["label"].replace(r"{pid}", f"{os.getpid()}")
 
         self.exit_requested = False
@@ -186,26 +192,29 @@ class Command(BaseCommand):
             ):
                 logger.warning(f"Found invalid tasks")
 
-        logger.debug(f"4. Create missing schedules")
-        existing_schedules_names = ScheduleExec.objects.values_list("name", flat=True)
-        for schedule in self._relevant_schedules:
-            # Create the schedule exec if it does not exist
-            if schedule.name in existing_schedules_names:
-                continue
-            try:
-                last_due = None if schedule.run_on_creation else now()
-                ScheduleExec.objects.create(name=schedule.name, last_due=last_due)
-                logger.debug(f"Created schedule {schedule.name}")
-            except IntegrityError:
-                # This could happen with concurrent workers, and can be ignored
-                logger.debug(
-                    f"Schedule {schedule.name} already exists, probably created concurrently"
-                )
+        if not self.no_schedules:
+            logger.debug(f"4. Create missing schedules")
+            existing_schedules_names = ScheduleExec.objects.values_list(
+                "name", flat=True
+            )
+            for schedule in self._relevant_schedules:
+                # Create the schedule exec if it does not exist
+                if schedule.name in existing_schedules_names:
+                    continue
+                try:
+                    last_due = None if schedule.run_on_creation else now()
+                    ScheduleExec.objects.create(name=schedule.name, last_due=last_due)
+                    logger.debug(f"Created schedule {schedule.name}")
+                except IntegrityError:
+                    # This could happen with concurrent workers, and can be ignored
+                    logger.debug(
+                        f"Schedule {schedule.name} already exists, probably created concurrently"
+                    )
 
-        logger.debug(f"5. Execute schedules")
-        with transaction.atomic():
-            for schedule_exec in self._build_schedules_list_qs():
-                did_something |= schedule_exec.execute()
+            logger.debug(f"5. Execute schedules")
+            with transaction.atomic():
+                for schedule_exec in self._build_schedules_list_qs():
+                    did_something |= schedule_exec.execute()
 
         logger.debug(f"6. Waking up tasks")
         TaskExec.objects.filter(state=TaskExec.States.SLEEPING).filter(
