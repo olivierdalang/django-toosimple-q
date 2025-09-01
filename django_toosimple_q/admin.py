@@ -71,6 +71,7 @@ class TaskExecAdmin(ReadOnlyAdmin):
     actions = ["action_requeue"]
     ordering = ["-created"]
     readonly_fields = ["task_", "result"]
+    date_hierarchy = "created"
     fieldsets = [
         (
             None,
