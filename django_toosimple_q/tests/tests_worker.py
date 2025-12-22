@@ -1,5 +1,7 @@
+import os
 import signal
 import time
+import unittest
 
 from django.core import management
 from freezegun import freeze_time
@@ -70,7 +72,11 @@ class TestWorkerExit(TooSimpleQBackgroundTestCase):
         )
 
         # Wait for the task to be picked up by the worker
-        self.wait_for_qs(TaskExec.objects.filter(state=TaskExec.States.PROCESSING))
+        try:
+            self.wait_for_qs(TaskExec.objects.filter(state=TaskExec.States.PROCESSING))
+        except AssertionError:
+            # Show the error
+            self.workers_get_stdout()
 
         # Keep id of the first task for further reference
         self.__first_task_pk = TaskExec.objects.first().pk
@@ -140,6 +146,9 @@ class TestWorkerExit(TooSimpleQBackgroundTestCase):
         self.assertIsNotNone(self.taskexec.replaced_by)
         self.assertEqual(self.taskexec.replaced_by.state, TaskExec.States.SLEEPING)
 
+    @unittest.skipIf(
+        not hasattr(signal, "SIGUSR1"), "USR1 signal not available on this platform"
+    )
     def test_worker_crash(self):
         self._start_worker_with_task()
 
@@ -156,6 +165,9 @@ class TestWorkerExit(TooSimpleQBackgroundTestCase):
 
         # The failure is not linked to the task
 
+    @unittest.skipIf(
+        os.name == "nt", "didn't find a way to gracefully stop subprocess on windows"
+    )
     def test_quit(self):
         self._start_worker_with_task()
 

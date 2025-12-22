@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  test-docker:
     name: Tests dj${{ matrix.dj }} / ${{ matrix.db }} / py${{ matrix.py }}
 
     runs-on: ubuntu-latest
@@ -47,3 +47,32 @@ jobs:
 
       - name: Run tests
         run: docker compose run django test
+
+  test-windows:
+    name: Tests windows
+
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Python version
+        run: python --version
+
+      - name: Packages versions
+        run: pip freeze --all
+
+      - name: Setup postgres
+        uses: ikalnytskyi/action-setup-postgres@v4
+
+      - name: Update pip
+        run: pip install --upgrade pip setuptools
+
+      - name: Install python deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        env:
+          TOOSIMPLEQ_TEST_DB: postgres
+          POSTGRES_PORT_WORKER: "5432"
+        run: python manage.py test
