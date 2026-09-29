@@ -25,8 +25,7 @@ Limitations :
 
 Compatibility:
 
-- Django 3.2 and 4.0
-- Python 3.8, 3.9, 3.10
+- Django 5.2, 6.0, 6.1 (we aim to support all currently supported django versions, if this is not the case, pull requests are welcome)
 
 ## Installation
 
@@ -370,6 +369,9 @@ pre-commit install
 
 
 ## Changelog
+
+- 2026-09-29 : v1.2.0
+  - infra: updated compatibility to Django 5.2/6.0/6.1 and Python 3.10-3.14 **⚠ dropping support for Django<5.2, it may still work on 5.1 but it won't on 5.0 ⚠**
 
 - 2026-09-29 : v1.1.0
   - fix: cron schedules now respect timezones **⚠ unless your server time is UTC, this will change when your tasks run ⚠**
