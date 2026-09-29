@@ -6,6 +6,7 @@ from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.template.defaultfilters import truncatechars
 from django.template.loader import render_to_string
+from django.templatetags.tz import localtime
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
@@ -355,5 +356,5 @@ def short_naturaltime(datetime):
     seconds = (timezone.now() - datetime).total_seconds()
     text = short_seconds(seconds)
     shorttime = f"in&nbsp;{text}" if seconds < 0 else f"{text}&nbsp;ago"
-    longtime = date_format(datetime, format="DATETIME_FORMAT", use_l10n=True)
+    longtime = date_format(localtime(datetime), format="DATETIME_FORMAT")
     return mark_safe(f'<span title="{escape(longtime)}">{shorttime}</span>')

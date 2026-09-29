@@ -7,9 +7,8 @@ from typing import List
 from croniter import croniter, croniter_range
 from django.db import models
 from django.template.defaultfilters import truncatechars
-from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.timezone import now
+from django.utils.timezone import localtime, now
 from django.utils.translation import gettext_lazy as _
 from picklefield.fields import PickledObjectField
 
@@ -225,11 +224,13 @@ class ScheduleExec(models.Model):
 
         if self.last_due is None:
             # If the schedule has no last due date (probaby create with run_on_creation), we run it
-            return [croniter(self.schedule.cron, now()).get_prev(datetime)]
+            return [croniter(self.schedule.cron, localtime()).get_prev(datetime)]
 
         # Otherwise, we find all execution times since last check
         dues = list(
-            croniter_range(self.last_due, now(), self.schedule.cron, exclude_ends=True)
+            croniter_range(
+                self.last_due, localtime(), self.schedule.cron, exclude_ends=True
+            )
         )
         # We keep only the last one if catchup wasn't specified
         if not self.schedule.catch_up:
@@ -243,7 +244,7 @@ class ScheduleExec(models.Model):
             # A manual schedule is never due
             return None
 
-        return croniter(self.schedule.cron, timezone.now()).get_next(datetime)
+        return croniter(self.schedule.cron, localtime()).get_next(datetime)
 
     def execute(self):
         did_something = False
