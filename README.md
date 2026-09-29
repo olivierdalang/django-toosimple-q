@@ -372,6 +372,7 @@ pre-commit install
 ## Changelog
 
 - 2026-xx-xx : v1.1.0
+  - fix: cron schedules now respect timezones **⚠ unless your server time is UTC, this will change when your tasks run ⚠**
   - fix: admin properly localizes dates on mouseover
 
 - 2025-09-01 : v1.0.0 **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**

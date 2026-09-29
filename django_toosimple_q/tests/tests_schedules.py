@@ -1,4 +1,7 @@
+from datetime import datetime, timezone
+
 from django.core import management
+from django.test import override_settings
 from freezegun import freeze_time
 
 from django_toosimple_q.decorators import register_task, schedule_task
@@ -345,3 +348,21 @@ class TestSchedules(TooSimpleQRegularTestCase):
         self.assertSchedule("b", ScheduleExec.States.ACTIVE)
         self.assertQueue(2, "a", TaskExec.States.SUCCEEDED)
         self.assertQueue(1, "b", TaskExec.States.SUCCEEDED)
+
+    @override_settings(TIME_ZONE="Europe/Zurich")
+    @freeze_time("2020-01-01")
+    def test_cron_timezone(self):
+        """Ensure cron respects timezone"""
+
+        @schedule_task(cron="0 12 * * *", datetime_kwarg="scheduled_on")
+        @register_task(name="normal")
+        def a(scheduled_on):
+            return f"{scheduled_on:%Y-%m-%d %H:%M}"
+
+        management.call_command("worker", "--until_done")
+
+        # a schedule due at 12 in Zurich is due at 11 in UTC
+        self.assertEqual(
+            ScheduleExec.objects.first().upcomming_due,
+            datetime(2020, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+        )
