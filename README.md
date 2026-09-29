@@ -371,6 +371,9 @@ pre-commit install
 
 ## Changelog
 
+- 2026-xx-xx : v1.1.0
+  - fix: admin properly localizes dates on mouseover
+
 - 2025-09-01 : v1.0.0 **⚠ BACKWARDS INCOMPATIBLE RELEASE ⚠**
   - feature: added workerstatus to the admin, allowing to monitor workers
   - feature: queue tasks for later (`mytask.queue(due=now()+timedelta(hours=2))`)
