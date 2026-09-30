@@ -1,6 +1,9 @@
 import time
+from datetime import datetime
 
 from django.core import management
+from django.test import override_settings
+from freezegun import freeze_time
 
 from django_toosimple_q.decorators import register_task, schedule_task
 from django_toosimple_q.models import TaskExec
@@ -50,3 +53,16 @@ class TestRegressionRegular(TooSimpleQRegularTestCase):
             return True
 
         management.call_command("worker", "--until_done")
+
+    @freeze_time(datetime(2020, 1, 1, 12, 0))
+    @override_settings(TIME_ZONE="Europe/Zurich")
+    def test_schedules_ran_twice_with_timezone_and_on_creation(self):
+        # Regression test for an issue with cron range calculation which wasn't honoring timezone, so schedules would run twice
+        @schedule_task(cron="0 2 * * *", name="name_a", run_on_creation=True)
+        @register_task(name="name_a")
+        def a():
+            return True
+
+        management.call_command("worker", "--until_done")
+        taskexecs = TaskExec.objects.filter()
+        self.assertEqual(taskexecs.count(), 1)
