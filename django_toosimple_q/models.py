@@ -8,7 +8,7 @@ from croniter import croniter, croniter_range
 from django.db import models
 from django.template.defaultfilters import truncatechars
 from django.utils.functional import cached_property
-from django.utils.timezone import localtime, now
+from django.utils.timezone import get_current_timezone, localtime, now
 from django.utils.translation import gettext_lazy as _
 from picklefield.fields import PickledObjectField
 
@@ -227,9 +227,10 @@ class ScheduleExec(models.Model):
             return [croniter(self.schedule.cron, localtime()).get_prev(datetime)]
 
         # Otherwise, we find all execution times since last check
+        local_last_due = self.last_due.astimezone(get_current_timezone())
         dues = list(
             croniter_range(
-                self.last_due, localtime(), self.schedule.cron, exclude_ends=True
+                local_last_due, localtime(), self.schedule.cron, exclude_ends=True
             )
         )
         # We keep only the last one if catchup wasn't specified

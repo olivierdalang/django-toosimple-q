@@ -370,10 +370,13 @@ pre-commit install
 
 ## Changelog
 
+- 2026-09-30 : v1.2.1
+  - fix: schedules ran twice when timezone wasn't utc
+
 - 2026-09-29 : v1.2.0
   - infra: updated compatibility to Django 5.2/6.0/6.1 and Python 3.10-3.14 **⚠ dropping support for Django<5.2, it may still work on 5.1 but it won't on 5.0 ⚠**
 
-- 2026-09-29 : v1.1.0
+- 2026-09-29 : ~~v1.1.0~~ (yanked, use v1.2.1 instead or stay on v1.1.0)
   - fix: cron schedules now respect timezones **⚠ unless your server time is UTC, this will change when your tasks run ⚠**
   - fix: admin properly localizes dates on mouseover
 
